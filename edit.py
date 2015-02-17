@@ -81,6 +81,7 @@ parser.add_argument("--team-score-font-size", dest="team_score_font_size", type=
 parser.add_argument("--supersampling", dest="supersampling", type=int, default=2)
 parser.add_argument("--flip", action="store_true")
 parser.add_argument("--num-samples", dest="num_samples", type=int, default=0)
+parser.add_argument("--cut", dest="cuts", action="append", type=parse_time_list, default=[])
 
 args = parser.parse_args()
 
@@ -165,6 +166,12 @@ if args.num_samples:
         ic = video_clip.to_ImageClip(t=sample_time)
         PIL.Image.fromarray(ic.img).save("samples/out.{:02d}.{:02d}.png".format(int(sample_time/60), int(sample_time%60)), "PNG")
 
-video_clip.write_videofile("out.mp4")
+# Generate video file(s)
+if args.cuts:
+    for cut in cuts:
+        filename = "out.{:02d}.{:02d}.mp4".format(int(cut[0]/60), int(cut[0]%60))
+        video_clip.subclip(t_start=cut[0], t_end=cut[1]).write_videofile(filename)
+else:
+    video_clip.write_videofile("out.mp4")
 
 
