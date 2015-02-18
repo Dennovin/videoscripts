@@ -5,7 +5,7 @@ import sys
 import re
 import moviepy.video.fx.all as vfx
 import yaml
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 import numpy
 from moviepy.editor import *
 from unidecode import unidecode
@@ -132,10 +132,21 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
                           .fx(vfx.resize, scale)
 
     background_width = label_width * 2 + score_width * 2 + timer_width
-    background_height = label_height
+    background_height = label_height + 3 * ssamp
     background = Image.new("RGBA", (background_width, background_height), (255, 255, 255, 0))
+    drop_shadow = Image.new("RGBA", (background_width + 2 * ssamp, background_height + 2 * ssamp), (0, 0, 0, 0))
+
+    draw = ImageDraw.Draw(drop_shadow)
+    draw.rectangle(((ssamp, ssamp), (background_width, background_height)), fill=(0, 0, 0, 64), outline=(0, 0, 0, 64))
+    for n in range(10):
+        drop_shadow = drop_shadow.filter(ImageFilter.BLUR)
+
+    drop_shadow.save("shadow.png")
+    shadow_array = numpy.array(drop_shadow)
+    del draw
 
     draw = ImageDraw.Draw(background)
+
     draw.rectangle(((0, 0), (label_width, background_height)), outline="black")
     draw.rectangle(((label_width, 0), (label_width + score_width, background_height)), outline="black")
     draw.rectangle(((label_width + score_width, 0), (label_width * 2 + score_width, background_height)), outline="black")
@@ -156,6 +167,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
     img_array = numpy.array(background)
     del draw
 
+    text_clips.append(ImageClip(shadow_array).fx(vfx.resize, scale).set_pos((away_left + 2, label_top + 2)).set_start(0).set_end(video_clip.duration))
     text_clips.append(ImageClip(img_array).fx(vfx.resize, scale).set_pos((away_left, label_top)).set_start(0).set_end(video_clip.duration))
     text_clips.append(home_label.set_pos((home_left, label_top)).set_start(0).set_end(video_clip.duration))
     text_clips.append(away_label.set_pos((away_left, label_top)).set_start(0).set_end(video_clip.duration))
