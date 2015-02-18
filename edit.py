@@ -190,8 +190,8 @@ for videofile in config["files"]:
 
 filename_base = "{} - {} vs. {}".format(
     config["game_date"],
-    re.sub("^[A-Za-z0-9]", "", unidecode(unicode(config["away_team"]))),
-    re.sub("^[A-Za-z0-9]", "", unidecode(unicode(config["home_team"]))),
+    re.sub("[^A-Za-z0-9]", "", unidecode(unicode(config["away_team"]["name"]))),
+    re.sub("[^A-Za-z0-9]", "", unidecode(unicode(config["home_team"]["name"]))),
 )
 
 clipped_video = concatenate_videoclips(all_clips)
