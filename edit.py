@@ -180,7 +180,7 @@ for videofile in config["files"]:
 
         effects = clip.get("effects", []) + config.get("clip_effects", [])
         for effect in effects:
-            subclip.fx(getattr(vfx, effect[0]), *effect[1:])
+            subclip = subclip.fx(getattr(vfx, effect[0]), *effect[1:])
 
         subclip.write_videofile(filename)
         all_clips.append(subclip)
