@@ -178,8 +178,10 @@ for videofile in config["files"]:
         filename = "{}.{:02d}.{:02d}.mp4".format(config["game_date"], int(start_time/60), int(start_time%60))
         subclip = video_clip.subclip(t_start=start_time, t_end=end_time)
 
-        if config.get("fade_clips", 0) > 0:
-            subclip = subclip.fx(vfx.fadein, config["fade_clips"]).fx(vfx.fadeout, config["fade_clips"])
+        effects = clip.get("effects", []) + config.get("clip_effects", [])
+        for effect in effects:
+            effect_name = effect.pop(0)
+            subclip.fx(getattr(vfx, effect_name), *effect)
 
         subclip.write_videofile(filename)
         all_clips.push(subclip)
@@ -191,7 +193,7 @@ filename_base = "{} - {} vs. {}".format(
 )
 
 clipped_video = concatenate_videoclips(all_clips)
-clipped_video.write_videofile("{} Clipped.mp4".format(filename_base)
+clipped_video.write_videofile("{} Clipped.mp4".format(filename_base))
 
-video_clip.write_videofile("{}.mp4".format(filename_base)
+video_clip.write_videofile("{}.mp4".format(filename_base))
 
