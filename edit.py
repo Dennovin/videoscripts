@@ -184,7 +184,7 @@ for videofile in config["files"]:
             subclip.fx(getattr(vfx, effect_name), *effect)
 
         subclip.write_videofile(filename)
-        all_clips.push(subclip)
+        all_clips.append(subclip)
 
 filename_base = "{} - {} vs. {}".format(
     config["game_date"],
