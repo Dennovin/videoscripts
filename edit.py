@@ -175,13 +175,12 @@ for videofile in config["files"]:
     for clip in videofile["clips"]:
         start_time = parse_time(clip["start"]) + videofile["start_time"]
         end_time = parse_time(clip["end"]) + videofile["start_time"]
-        filename = "{}.{:02d}.{:02d}.mp4".format(config["game_date"], int(start_time/60), int(start_time%60))
+        filename = "{} {:02d}.{:02d}.mp4".format(config["game_date"], int(start_time/60), int(start_time%60))
         subclip = video_clip.subclip(t_start=start_time, t_end=end_time)
 
         effects = clip.get("effects", []) + config.get("clip_effects", [])
         for effect in effects:
-            effect_name = effect.pop(0)
-            subclip.fx(getattr(vfx, effect_name), *effect)
+            subclip.fx(getattr(vfx, effect[0]), *effect[1:])
 
         subclip.write_videofile(filename)
         all_clips.append(subclip)
