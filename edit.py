@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 import argparse
-from colormath.color_objects import sRGBColor
+import palette
 import sys
 import re
 import moviepy.video.fx.all as vfx
 import yaml
+from PIL import Image, ImageDraw
+import numpy
 from moviepy.editor import *
 from unidecode import unidecode
 
@@ -58,8 +60,11 @@ class Timer(object):
 def parse_time(s):
     return sum([int(v) * 60 ** k for k, v in enumerate(reversed(s.split(":")))])
 
-def parse_time_list(s):
-    return [parse_time(i) for i in s.split(",")]
+def color_rgba(c):
+    return (int(c.rgb8.r), int(c.rgb8.g), int(c.rgb8.b), int(c.a * 255))
+
+def gradient_rgba(start_color, end_color, pct):
+    return tuple(int(i1 + (i2 - i1) * pct) for i1, i2 in zip(color_rgba(start_color), color_rgba(end_color)))
 
 config = {}
 for filename in sys.argv[1:]:
@@ -83,39 +88,95 @@ video_clip = concatenate_videoclips(input_clips)
 if config["flip"]:
     video_clip = vfx.rotate(video_clip, 180)
 
-text_clips = []
-
-# Timer
-for timer in config.get("timers", []):
-    timer["start"] = parse_time(timer["start"])
-    timer["length"] = parse_time(timer["length"])
-    for pause in timer.get("pauses", []):
-        pause["start"] = parse_time(pause["start"]) - timer["start"]
-        pause["end"] = parse_time(pause["end"]) - timer["start"]
-
-    timer_obj = Timer.new_from_dict(timer)
-    timer_obj.clip = TextClip(txt=timer_obj.text(), font=config["timer_font"], fontsize=config["timer_font_size"]*ssamp, method="label",
-                              color="white", stroke_color="black", align="West")
-
-    moving_timer = timer_obj.clip.fl(timer_obj.process, apply_to=["mask"]) \
-        .fx(vfx.resize, scale).set_start(timer_obj.start) \
-        .set_duration(timer_obj.total_length()).set_pos(("right", "top"))
-
-    text_clips.append(moving_timer)
-
 # Scoreboard
+text_clips = []
 if (config["home_team"] is not None) and (config["away_team"] is not None):
     # Get size and position
     home_label = TextClip(txt=" "+config["home_team"]["name"], font=config["team_name_font"], fontsize=config["team_name_font_size"]*ssamp, method="label")
     away_label = TextClip(txt=" "+config["away_team"]["name"], font=config["team_name_font"], fontsize=config["team_name_font_size"]*ssamp, method="label")
     score_label = TextClip(txt=" 00 ", font=config["team_score_font"], fontsize=config["team_score_font_size"]*ssamp, method="label")
+    timer_label = TextClip(txt=" OOOO 00:00 ", font=config["timer_font"], fontsize=config["timer_font_size"]*ssamp, method="label")
+
     label_height = int(max(home_label.h, away_label.h, score_label.h) * 1.05)
-    label_width = int(max(home_label.w, away_label.w) * 1.1)
+    label_width = int(max(home_label.w, away_label.w) * 1.2)
     score_width = int(score_label.w * 1.1)
-    home_top = 5
-    away_top = home_top + int(label_height * scale)
-    label_left = 5
-    score_left = label_left + int(label_width * scale)
+    timer_width = int(timer_label.w * 1.2)
+    label_top = 0
+
+    away_left = int(video_clip.w / 2) - int((label_width + score_width) * scale) - int(timer_width * scale / 2)
+    away_score_left = away_left + label_width * scale
+    home_left = away_score_left + score_width * scale
+    home_score_left = home_left + label_width * scale
+    timer_left = home_score_left + score_width * scale
+
+    # Generate scoreboard background and team name labels
+    home_color = palette.Color(config["home_team"]["color"])
+    home_color.a = 0.8
+    home_color_light = home_color.lighter()
+
+    away_color = palette.Color(config["away_team"]["color"])
+    away_color.a = 0.8
+    away_color_light = away_color.lighter()
+
+    timer_color = palette.Color(config["timer_color"])
+    timer_color.a = 0.8
+    timer_color_light = timer_color.lighter()
+
+    home_label = TextClip(txt=" "+config["home_team"]["name"], font=config["team_name_font"], fontsize=config["team_name_font_size"]*ssamp,
+                          size=(label_width, label_height), method="caption", align="West",
+                          color="white", stroke_color="black", stroke_width=0.5*ssamp) \
+                          .fx(vfx.resize, scale)
+    away_label = TextClip(txt=" "+config["away_team"]["name"], font=config["team_name_font"], fontsize=config["team_name_font_size"]*ssamp,
+                          size=(label_width, label_height), method="caption", align="West",
+                          color="white", stroke_color="black", stroke_width=0.5*ssamp) \
+                          .fx(vfx.resize, scale)
+
+    background_width = label_width * 2 + score_width * 2 + timer_width
+    background_height = label_height
+    background = Image.new("RGBA", (background_width, background_height), (255, 255, 255, 0))
+
+    draw = ImageDraw.Draw(background)
+    draw.rectangle(((0, 0), (label_width, background_height)), outline="black")
+    draw.rectangle(((label_width, 0), (label_width + score_width, background_height)), outline="black")
+    draw.rectangle(((label_width + score_width, 0), (label_width * 2 + score_width, background_height)), outline="black")
+    draw.rectangle(((label_width * 2 + score_width, 0), (label_width * 2 + score_width * 2, background_height)), outline="black")
+    draw.rectangle(((label_width * 2 + score_width * 2, 0), (background_width, background_height)), outline="black")
+
+    for row in range(1, background_height - 1):
+        home_color_grad = gradient_rgba(home_color_light, home_color, float(row) / background_height)
+        away_color_grad = gradient_rgba(away_color_light, away_color, float(row) / background_height)
+        timer_color_grad = gradient_rgba(timer_color_light, timer_color, float(row) / background_height)
+
+        draw.line(((1, row), (label_width - 1, row)), fill=away_color_grad)
+        draw.line(((label_width + 1, row), (label_width + score_width - 1, row)), fill=away_color_grad)
+        draw.line(((label_width + score_width + 1, row), (label_width * 2 + score_width - 1, row)), fill=home_color_grad)
+        draw.line(((label_width * 2 + score_width + 1, row), (label_width * 2 + score_width * 2 - 1, row)), fill=home_color_grad)
+        draw.line(((label_width * 2 + score_width * 2 + 1, row), (background_width - 1, row)), fill=timer_color_grad)
+
+    img_array = numpy.array(background)
+    del draw
+
+    text_clips.append(ImageClip(img_array).fx(vfx.resize, scale).set_pos((away_left, label_top)).set_start(0).set_end(video_clip.duration))
+    text_clips.append(home_label.set_pos((home_left, label_top)).set_start(0).set_end(video_clip.duration))
+    text_clips.append(away_label.set_pos((away_left, label_top)).set_start(0).set_end(video_clip.duration))
+
+    # Timer
+    for timer in config.get("timers", []):
+        timer["start"] = parse_time(timer["start"])
+        timer["length"] = parse_time(timer["length"])
+        for pause in timer.get("pauses", []):
+            pause["start"] = parse_time(pause["start"]) - timer["start"]
+            pause["end"] = parse_time(pause["end"]) - timer["start"]
+
+        timer_obj = Timer.new_from_dict(timer)
+        timer_obj.clip = TextClip(txt=timer_obj.text(), font=config["timer_font"], fontsize=config["timer_font_size"]*ssamp, method="label",
+                                  color="white", stroke_color="black", align="West")
+
+        moving_timer = timer_obj.clip.fl(timer_obj.process, apply_to=["mask"]) \
+            .fx(vfx.resize, scale).set_start(timer_obj.start) \
+            .set_duration(timer_obj.total_length()).set_pos((timer_left + (timer_width - timer_obj.clip.w) * scale / 2, label_top))
+
+        text_clips.append(moving_timer)
 
     # Organize list of goals
     home_goals = []
@@ -128,36 +189,20 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
             else:
                 away_goals.append(parse_time(goal["time"]) + videofile["start_time"])
 
-    # Generate team name labels
-    home_color = "rgba({},{},{},0.8)".format(*sRGBColor.new_from_rgb_hex(config["home_team"]["color"]).get_upscaled_value_tuple())
-    away_color = "rgba({},{},{},0.8)".format(*sRGBColor.new_from_rgb_hex(config["away_team"]["color"]).get_upscaled_value_tuple())
-
-    home_label = TextClip(txt=" "+config["home_team"]["name"], font=config["team_name_font"], fontsize=config["team_name_font_size"]*ssamp,
-                          size=(label_width, label_height), method="caption", align="West", bg_color=home_color,
-                          color="white", stroke_color="black", stroke_width=0.5*ssamp) \
-                          .fx(vfx.resize, scale)
-    away_label = TextClip(txt=" "+config["away_team"]["name"], font=config["team_name_font"], fontsize=config["team_name_font_size"]*ssamp,
-                          size=(label_width, label_height), method="caption", align="West", bg_color=away_color,
-                          color="white", stroke_color="black", stroke_width=0.5*ssamp) \
-                          .fx(vfx.resize, scale)
-
-    text_clips.append(home_label.set_pos((label_left, home_top)).set_start(0).set_end(video_clip.duration))
-    text_clips.append(away_label.set_pos((label_left, away_top)).set_start(0).set_end(video_clip.duration))
-
     # Generate score labels
     for score, times in enumerate(zip([0] + sorted(home_goals), sorted(home_goals) + [video_clip.duration])):
-        text_clip = TextClip(txt=str(score)+" ", font=config["team_score_font"], fontsize=config["team_score_font_size"]*ssamp,
-                             size=(score_width, label_height), method="caption", align="East", bg_color=home_color,
-                             color="white", stroke_color="black", stroke_width=0.5*ssamp) \
+        text_clip = TextClip(txt=str(score), font=config["team_score_font"], fontsize=config["team_score_font_size"]*ssamp,
+                             size=(score_width, label_height), method="caption", align="Center",
+                             color="rgba(255, 255, 255, 204)", stroke_color="rgba(0, 0, 0, 204)", stroke_width=0.5*ssamp) \
                              .fx(vfx.resize, scale)
-        text_clips.append(text_clip.set_pos((score_left, home_top)).set_start(times[0]).set_end(times[1]))
+        text_clips.append(text_clip.set_pos((home_score_left, label_top)).set_start(times[0]).set_end(times[1]))
 
     for score, times in enumerate(zip([0] + sorted(away_goals), sorted(away_goals) + [video_clip.duration])):
-        text_clip = TextClip(txt=str(score)+" ", font=config["team_score_font"], fontsize=config["team_score_font_size"]*ssamp,
-                             size=(score_width, label_height), method="caption", align="East", bg_color=away_color,
+        text_clip = TextClip(txt=str(score), font=config["team_score_font"], fontsize=config["team_score_font_size"]*ssamp,
+                             size=(score_width, label_height), method="caption", align="Center",
                              color="white", stroke_color="black", stroke_width=0.5*ssamp) \
                              .fx(vfx.resize, scale)
-        text_clips.append(text_clip.set_pos((score_left, away_top)).set_start(times[0]).set_end(times[1]))
+        text_clips.append(text_clip.set_pos((away_score_left, label_top)).set_start(times[0]).set_end(times[1]))
 
 
 if text_clips:
@@ -190,12 +235,12 @@ for videofile in config["files"]:
 
 filename_base = "{} - {} vs. {}".format(
     config["game_date"],
-    re.sub("[^A-Za-z0-9]", "", unidecode(unicode(config["away_team"]["name"]))),
-    re.sub("[^A-Za-z0-9]", "", unidecode(unicode(config["home_team"]["name"]))),
+    re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["away_team"]["name"]))),
+    re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["home_team"]["name"]))),
 )
 
 clipped_video = concatenate_videoclips(all_clips)
-clipped_video.write_videofile("{} Clipped.mp4".format(filename_base))
+clipped_video.write_videofile("{} - Clipped.mp4".format(filename_base))
 
 video_clip.write_videofile("{}.mp4".format(filename_base))
 
