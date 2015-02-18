@@ -33,7 +33,7 @@ class Timer(object):
         duration = int(self.length) + 1
 
         for pause in self.pauses:
-            duration += (parse_time(pause["end"]) - parse_time(pause["start"]))
+            duration += pause["end"] - pause["start"]
 
         return duration
 
@@ -41,7 +41,7 @@ class Timer(object):
         elapsed = int(t)
 
         for pause in self.pauses:
-            elapsed -= max(min(t, parse_time(pause["end"])) - parse_time(pause["start"]), 0)
+            elapsed -= max(min(t, pause["end"]) - pause["start"], 0)
 
         return int(self.length - elapsed)
 
@@ -89,6 +89,9 @@ text_clips = []
 for timer in config.get("timers", []):
     timer["start"] = parse_time(timer["start"])
     timer["length"] = parse_time(timer["length"])
+    for pause in timer.get("pauses", []):
+        pause["start"] = parse_time(pause["start"]) - timer["start"]
+        pause["end"] = parse_time(pause["end"]) - timer["start"]
 
     timer_obj = Timer.new_from_dict(timer)
     timer_obj.clip = TextClip(txt=timer_obj.text(), font=config["timer_font"], fontsize=config["timer_font_size"]*ssamp, method="label",
