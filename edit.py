@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse
+import os
 import palette
 import sys
 import re
@@ -67,9 +68,34 @@ def gradient_rgba(start_color, end_color, pct):
     return tuple(int(i1 + (i2 - i1) * pct) for i1, i2 in zip(color_rgba(start_color), color_rgba(end_color)))
 
 config = {}
-for filename in sys.argv[1:]:
-    with open(filename, "r") as config_fh:
-        config.update(yaml.load(config_fh.read()))
+config_files = sys.argv[1:]
+
+search_dirs = set()
+for config_file in config_files:
+    search_dirs.add(os.path.dirname(config_file))
+
+while config_files:
+    config_fn = config_files.pop(0)
+    with open(config_fn, "r") as config_fh:
+        print "Loading config file: {}".format(os.path.abspath(config_fn))
+
+        file_config = yaml.load(config_fh.read())
+
+        for included_file in file_config.get("include", []):
+            if os.path.isfile(included_file):
+                config_files.append(included_file)
+                continue
+
+            fn = os.path.join(os.path.dirname(os.path.abspath(config_fn)), included_file)
+            while not os.path.isfile(fn):
+                new_fn = os.path.abspath(os.path.join(os.path.dirname(fn), os.pardir, os.path.basename(fn)))
+                if fn == new_fn:
+                    raise IOError("Couldn't find included file {}".format(included_file))
+                fn = new_fn
+
+            config_files.append(fn)
+
+        config.update(file_config)
 
 ssamp = config["supersampling"]
 scale = 1.0 / float(ssamp)
@@ -77,6 +103,14 @@ scale = 1.0 / float(ssamp)
 # Concatenate
 input_clips = []
 for videofile in config["files"]:
+    if not os.path.isfile(videofile["name"]):
+        for dirname in search_dirs:
+            if os.path.isfile(os.path.join(dirname, videofile["name"])):
+                videofile["name"] = os.path.join(dirname, videofile["name"])
+                break
+
+    print "Loading clip: {}".format(os.path.abspath(videofile["name"]))
+
     videofile["clip"] = VideoFileClip(videofile["name"])
     videofile["start_time"] = sum(i.get("length", 0) for i in config["files"])
     videofile["length"] = videofile["clip"].duration
@@ -141,7 +175,6 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
     for n in range(10):
         drop_shadow = drop_shadow.filter(ImageFilter.BLUR)
 
-    drop_shadow.save("shadow.png")
     shadow_array = numpy.array(drop_shadow)
     del draw
 
