@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw, ImageFilter
 import numpy
 from moviepy.editor import *
 from unidecode import unidecode
+import logging
 
 
 class Timer(object):
@@ -67,6 +68,9 @@ def color_rgba(c):
 def gradient_rgba(start_color, end_color, pct):
     return tuple(int(i1 + (i2 - i1) * pct) for i1, i2 in zip(color_rgba(start_color), color_rgba(end_color)))
 
+
+logging.getLogger().setLevel(logging.INFO)
+
 config = {}
 config_files = sys.argv[1:]
 main_config_file = config_files[0]
@@ -79,7 +83,7 @@ for config_file in config_files:
 while config_files:
     config_fn = config_files.pop(0)
     with open(config_fn, "r") as config_fh:
-        print "Loading config file: {}".format(os.path.abspath(config_fn))
+        logging.info("Loading config file: {}".format(os.path.abspath(config_fn)))
 
         file_config = yaml.load(config_fh.read())
 
@@ -102,6 +106,8 @@ while config_files:
 ssamp = config["supersampling"]
 scale = 1.0 / float(ssamp)
 
+logging.info("Output directory is: {}".format(output_dir))
+
 # Concatenate
 input_clips = []
 for videofile in config["files"]:
@@ -111,7 +117,7 @@ for videofile in config["files"]:
                 videofile["name"] = os.path.join(dirname, videofile["name"])
                 break
 
-    print "Loading clip: {}".format(os.path.abspath(videofile["name"]))
+    logging.info("Loading clip: {}".format(os.path.abspath(videofile["name"])))
 
     videofile["clip"] = VideoFileClip(videofile["name"])
     videofile["start_time"] = sum(i.get("length", 0) for i in config["files"])
@@ -209,6 +215,8 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
 
     # Timer
     for timer in config.get("timers", []):
+        logging.info("Generating timer: {}".format(timer["name"]))
+
         timer["start"] = parse_time(timer["start"])
         timer["length"] = parse_time(timer["length"])
         for pause in timer.get("pauses", []):
@@ -244,12 +252,16 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
                              .fx(vfx.resize, scale)
         text_clips.append(text_clip.set_pos((home_score_left, label_top)).set_start(times[0]).set_end(times[1]))
 
+        logging.info("Home team score is {} between {:02d}:{:02d} and {:02d}:{:02d}", score, int(times[0]/60), int(times[0]%60), int(times[1]/60), int(times[1]%60))
+
     for score, times in enumerate(zip([0] + sorted(away_goals), sorted(away_goals) + [video_clip.duration])):
         text_clip = TextClip(txt=str(score), font=config["team_score_font"], fontsize=config["team_score_font_size"]*ssamp,
                              size=(score_width, label_height), method="caption", align="Center",
                              color="white", stroke_color="black", stroke_width=0.5*ssamp) \
                              .fx(vfx.resize, scale)
         text_clips.append(text_clip.set_pos((away_score_left, label_top)).set_start(times[0]).set_end(times[1]))
+
+        logging.info("Away team score is {} between {:02d}:{:02d} and {:02d}:{:02d}", score, int(times[0]/60), int(times[0]%60), int(times[1]/60), int(times[1]%60))
 
 
 if text_clips:
@@ -260,11 +272,14 @@ if config["num_samples"]:
     import PIL
 
     for i in range(config["num_samples"]):
-        sample_time = float(i * video_clip.duration) / float(config["num_samples"])
+        sample_time = float((i + 0.5) * video_clip.duration) / float(config["num_samples"])
+        logging.info("Generating sample image at {:02d}:{:02d}".format(int(sample_time/60), int(sample_time%60)))
         ic = video_clip.to_ImageClip(t=sample_time)
         PIL.Image.fromarray(ic.img).save(os.path.join(output_dir, "out.{:02d}.{:02d}.png".format(int(sample_time/60), int(sample_time%60))), "PNG")
 
 # Generate video file(s)
+logging.info("Generating video clips.")
+
 all_clips = []
 for videofile in config["files"]:
     for clip in videofile["clips"]:
