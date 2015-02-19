@@ -69,6 +69,8 @@ def gradient_rgba(start_color, end_color, pct):
 
 config = {}
 config_files = sys.argv[1:]
+main_config_file = config_files[0]
+output_dir = os.path.abspath(os.path.basename(main_config_file))
 
 search_dirs = set()
 for config_file in config_files:
@@ -260,7 +262,7 @@ if config["num_samples"]:
     for i in range(config["num_samples"]):
         sample_time = float(i * video_clip.duration) / float(config["num_samples"])
         ic = video_clip.to_ImageClip(t=sample_time)
-        PIL.Image.fromarray(ic.img).save("samples/out.{:02d}.{:02d}.png".format(int(sample_time/60), int(sample_time%60)), "PNG")
+        PIL.Image.fromarray(ic.img).save(os.path.join(output_dir, "out.{:02d}.{:02d}.png".format(int(sample_time/60), int(sample_time%60)), "PNG"))
 
 # Generate video file(s)
 all_clips = []
@@ -268,7 +270,7 @@ for videofile in config["files"]:
     for clip in videofile["clips"]:
         start_time = parse_time(clip["start"]) + videofile["start_time"]
         end_time = parse_time(clip["end"]) + videofile["start_time"]
-        filename = "{} {:02d}.{:02d}.mp4".format(config["game_date"], int(start_time/60), int(start_time%60))
+        filename = os.path.join(output_dir, "clip.{:02d}.{:02d}.mp4".format(config["game_date"], int(start_time/60), int(start_time%60)))
         subclip = video_clip.subclip(t_start=start_time, t_end=end_time)
 
         effects = clip.get("effects", []) + config.get("clip_effects", [])
@@ -285,7 +287,7 @@ filename_base = "{} - {} vs. {}".format(
 )
 
 clipped_video = concatenate_videoclips(all_clips)
-clipped_video.write_videofile("{} - Clipped.mp4".format(filename_base))
+clipped_video.write_videofile(os.path.join(output_dir, "{} - Clipped.mp4".format(filename_base)))
 
-video_clip.write_videofile("{}.mp4".format(filename_base))
+video_clip.write_videofile(os.path.join(output_dir, "{}.mp4".format(filename_base)))
 
