@@ -70,7 +70,7 @@ def gradient_rgba(start_color, end_color, pct):
 config = {}
 config_files = sys.argv[1:]
 main_config_file = config_files[0]
-output_dir = os.path.abspath(os.path.basename(main_config_file))
+output_dir = os.path.dirname(os.path.abspath(main_config_file))
 
 search_dirs = set()
 for config_file in config_files:
@@ -262,7 +262,7 @@ if config["num_samples"]:
     for i in range(config["num_samples"]):
         sample_time = float(i * video_clip.duration) / float(config["num_samples"])
         ic = video_clip.to_ImageClip(t=sample_time)
-        PIL.Image.fromarray(ic.img).save(os.path.join(output_dir, "out.{:02d}.{:02d}.png".format(int(sample_time/60), int(sample_time%60)), "PNG"))
+        PIL.Image.fromarray(ic.img).save(os.path.join(output_dir, "out.{:02d}.{:02d}.png".format(int(sample_time/60), int(sample_time%60))), "PNG")
 
 # Generate video file(s)
 all_clips = []
