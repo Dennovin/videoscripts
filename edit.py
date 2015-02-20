@@ -131,7 +131,9 @@ while config_files:
 
 ssamp = config["supersampling"]
 scale = 1.0 / float(ssamp)
+sample_times = []
 
+# Merge video file lists, but maintain their order
 videofiles = {}
 for i, videofile in enumerate(config["files"]):
     videofiles[videofile["name"]] = merge(videofiles.get(videofile["name"], {"order": i}), videofile)
@@ -296,6 +298,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
             .set_pos((int(timer_left + (timer_width - timer.clip.w) * scale / 2), label_top))
 
         text_clips.append(moving_timer)
+        sample_times.append(timer.start)
 
     # Just labels
     for label in labels.values():
@@ -320,7 +323,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
             .set_pos((int(timer_left + (timer_width - text_clip.w) * scale / 2), label_top))
 
         text_clips.append(text_clip)
-
+        sample_times.append(label["start"])
 
     # Organize list of goals
     home_goals = []
@@ -340,6 +343,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
                              color="rgba(255, 255, 255, 204)", stroke_color="rgba(0, 0, 0, 204)", stroke_width=0.5*ssamp) \
                              .fx(vfx.resize, scale)
         text_clips.append(text_clip.set_pos((home_score_left, label_top)).set_start(times[0]).set_end(times[1]))
+        sample_times.append(times[0])
 
         logging.info("Home team score is {} between {} and {}".format(score, format_time(times[0]), format_time(times[1])))
 
@@ -349,6 +353,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
                              color="white", stroke_color="black", stroke_width=0.5*ssamp) \
                              .fx(vfx.resize, scale)
         text_clips.append(text_clip.set_pos((away_score_left, label_top)).set_start(times[0]).set_end(times[1]))
+        sample_times.append(times[0])
 
         logging.info("Away team score is {} between {} and {}".format(score, format_time(times[0]), format_time(times[1])))
 
@@ -356,13 +361,11 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
 if text_clips:
     video_clip = CompositeVideoClip([video_clip] + text_clips)
 
-# Generate some samples
-if "num_samples" in config:
-    for i in range(config["num_samples"]):
-        sample_time = float((i + 0.5) * video_clip.duration) / float(config["num_samples"])
-        logging.info("Generating sample image at {}".format(format_time(sample_time)))
-        ic = video_clip.to_ImageClip(t=sample_time)
-        Image.fromarray(ic.img).save(os.path.join(output_dir, "out.{}.png".format(format_time(sample_time, "{m:02d}.{s:05.2f}"))), "PNG")
+# Generate sample images
+for sample_time in sample_times:
+    logging.info("Generating sample image at {}".format(format_time(sample_time)))
+    ic = video_clip.to_ImageClip(t=sample_time)
+    Image.fromarray(ic.img).save(os.path.join(output_dir, "sample.{}.png".format(format_time(sample_time, "{m:02d}.{s:05.2f}"))), "PNG")
 
 # Generate video file(s)
 logging.info("Generating video clips.")
