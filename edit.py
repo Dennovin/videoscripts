@@ -146,7 +146,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
     label_width = int(max(home_label.w, away_label.w) * 1.2)
     score_width = int(score_label.w * 1.1)
     timer_width = int(timer_label.w * 1.2)
-    label_top = 0
+    label_top = 10
 
     away_left = int(video_clip.w / 2) - int((label_width + score_width) * scale) - int(timer_width * scale / 2)
     away_score_left = away_left + label_width * scale
@@ -157,14 +157,17 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
     # Generate scoreboard background and team name labels
     home_color = palette.Color(config["home_team"]["color"])
     home_color.a = 0.8
+    home_color_dark = home_color.darker()
     home_color_light = home_color.lighter()
 
     away_color = palette.Color(config["away_team"]["color"])
     away_color.a = 0.8
+    away_color_dark = away_color.darker()
     away_color_light = away_color.lighter()
 
     timer_color = palette.Color(config["timer_color"])
     timer_color.a = 0.8
+    timer_color_dark = timer_color.darker()
     timer_color_light = timer_color.lighter()
 
     home_label = TextClip(txt=" "+config["home_team"]["name"], font=config["team_name_font"], fontsize=config["team_name_font_size"]*ssamp,
@@ -198,9 +201,9 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
     draw.rectangle(((label_width * 2 + score_width * 2, 0), (background_width, background_height)), outline="black")
 
     for row in range(1, background_height - 1):
-        home_color_grad = gradient_rgba(home_color_light, home_color, float(row) / background_height)
-        away_color_grad = gradient_rgba(away_color_light, away_color, float(row) / background_height)
-        timer_color_grad = gradient_rgba(timer_color_light, timer_color, float(row) / background_height)
+        home_color_grad = gradient_rgba(home_color_light, home_color_dark, float(row) / background_height)
+        away_color_grad = gradient_rgba(away_color_light, away_color_dark, float(row) / background_height)
+        timer_color_grad = gradient_rgba(timer_color_light, timer_color_dark, float(row) / background_height)
 
         draw.line(((1, row), (label_width - 1, row)), fill=away_color_grad)
         draw.line(((label_width + 1, row), (label_width + score_width - 1, row)), fill=away_color_grad)
