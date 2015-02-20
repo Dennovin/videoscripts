@@ -28,10 +28,13 @@ class Timer(object):
         self.pauses = []
 
     def text(self):
-        return "\n".join([
-                "{} {:02d}:{:02d} ".format(self.name, int(sec/60), int(sec%60))
-                for sec in range(int(self.length) + 1)
-                ])
+        if hasattr(self, "after"):
+            return self.name
+        else:
+            return "\n".join([
+                    "{} {:02d}:{:02d} ".format(self.name, int(sec/60), int(sec%60))
+                    for sec in range(int(self.length) + 1)
+                    ])
 
     def total_length(self):
         duration = int(self.length) + 1
@@ -42,6 +45,9 @@ class Timer(object):
         return duration
 
     def time_left(self, t):
+        if hasattr(self, "after"):
+            return 0
+
         elapsed = int(t)
 
         for pause in self.pauses:
@@ -213,25 +219,63 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
     text_clips.append(home_label.set_pos((home_left, label_top)).set_start(0).set_end(video_clip.duration))
     text_clips.append(away_label.set_pos((away_left, label_top)).set_start(0).set_end(video_clip.duration))
 
-    # Timer
-    for timer in config.get("timers", []):
+    # Organize list of timers
+    timers = {}
+    for videofile in config["files"]:
+        for timer_event in videofile.get("timer_events", []):
+            timers[timer_event["timer"]] = timers.get(timer_event["timer"], {"name": timer_event["timer"]})
+
+            if timer_event["event"] == "start":
+                if "time" in timer_event and "length" in timer_event:
+                    timers[timer_event["timer"]]["start"] = parse_time(timer_event["time"]) + videofile["start_time"]
+                    timers[timer_event["timer"]]["length"] = parse_time(timer_event["length"])
+                    timers[timer_event["timer"]]["end"] = timers[timer_event["timer"]]["start"] + parse_time(timer_event["length"])
+                elif "after" in timer_event:
+                    timers[timer_event["timer"]]["after"] = timer_event["after"]
+
+            if timer_event["event"] == "pause":
+                timers[timer_event["timer"]]["pauses"] = timers[timer_event["timer"]].get("pauses", [])
+                timers[timer_event["timer"]]["pauses"].append({"start": parse_time(timer_event["time"]) + videofile["start_time"]})
+
+            if timer_event["event"] == "unpause":
+                timers[timer_event["timer"]]["unpauses"] = timers[timer_event["timer"]].get("unpauses", [])
+                timers[timer_event["timer"]]["unpauses"].append(parse_time(timer_event["time"]) + videofile["start_time"])
+
+    timer_starts = [t["start"] for t in timers.values() if "start" in t]
+    timer_starts.append(video_clip.duration)
+
+    for timer in sorted(timers.values(), key=lambda x: x.get("start", None)):
         logging.info("Generating timer: {}".format(timer["name"]))
 
-        timer["start"] = parse_time(timer["start"])
-        timer["length"] = parse_time(timer["length"])
-        for pause in timer.get("pauses", []):
-            pause["start"] = parse_time(pause["start"]) - timer["start"]
-            pause["end"] = parse_time(pause["end"]) - timer["start"]
+        if "after" in timer:
+            timer["start"] = timers[timer["after"]]["end"]
 
-        timer_obj = Timer.new_from_dict(timer)
-        timer_obj.clip = TextClip(txt=timer_obj.text(), font=config["timer_font"], fontsize=config["timer_font_size"]*ssamp, method="label",
-                                  color="white", stroke_color="black", align="West")
+            for next_timer_start in sorted(timer_starts):
+                if next_timer_start > timer["start"]:
+                    timer["end"] = next_timer_start
+                    break
 
-        moving_timer = timer_obj.clip.fl(timer_obj.process, apply_to=["mask"]) \
-            .fx(vfx.resize, scale).set_start(timer_obj.start) \
-            .set_duration(timer_obj.total_length()).set_pos((timer_left + (timer_width - timer_obj.clip.w) * scale / 2, label_top))
+            text_clip = TextClip(txt=timer["name"], font=config["timer_font"], fontsize=config["timer_font_size"]*ssamp, method="label",
+                                 color="white", stroke_color="black", align="West")
+            text_clip = text_clip.fx(vfx.resize, scale).set_start(timer["start"]).set_end(timer["end"]) \
+                .set_pos((int(timer_left + (timer_width - text_clip.w) * scale / 2), label_top))
 
-        text_clips.append(moving_timer)
+            text_clips.append(text_clip)
+
+        else:
+            for pause in zip(sorted(timer.get("pauses", []), key=lambda x: x["start"]), sorted(timer.get("unpauses", []))):
+                pause[0]["start"] = pause[0]["start"] - timer["start"]
+                pause[0]["end"] = pause[1] - timer["start"]
+
+            timer_obj = Timer.new_from_dict(timer)
+            timer_obj.clip = TextClip(txt=timer_obj.text(), font=config["timer_font"], fontsize=config["timer_font_size"]*ssamp, method="label",
+                                      color="white", stroke_color="black", align="West")
+
+            moving_timer = timer_obj.clip.fl(timer_obj.process, apply_to=["mask"]).fx(vfx.resize, scale) \
+                .set_start(timer_obj.start).set_duration(timer_obj.total_length()) \
+                .set_pos((int(timer_left + (timer_width - timer_obj.clip.w) * scale / 2), label_top))
+
+            text_clips.append(moving_timer)
 
     # Organize list of goals
     home_goals = []
@@ -252,7 +296,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
                              .fx(vfx.resize, scale)
         text_clips.append(text_clip.set_pos((home_score_left, label_top)).set_start(times[0]).set_end(times[1]))
 
-        logging.info("Home team score is {} between {:02d}:{:02d} and {:02d}:{:02d}", score, int(times[0]/60), int(times[0]%60), int(times[1]/60), int(times[1]%60))
+        logging.info("Home team score is {} between {:02d}:{:02d} and {:02d}:{:02d}".format(score, int(times[0]/60), int(times[0]%60), int(times[1]/60), int(times[1]%60)))
 
     for score, times in enumerate(zip([0] + sorted(away_goals), sorted(away_goals) + [video_clip.duration])):
         text_clip = TextClip(txt=str(score), font=config["team_score_font"], fontsize=config["team_score_font_size"]*ssamp,
@@ -261,7 +305,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
                              .fx(vfx.resize, scale)
         text_clips.append(text_clip.set_pos((away_score_left, label_top)).set_start(times[0]).set_end(times[1]))
 
-        logging.info("Away team score is {} between {:02d}:{:02d} and {:02d}:{:02d}", score, int(times[0]/60), int(times[0]%60), int(times[1]/60), int(times[1]%60))
+        logging.info("Away team score is {} between {:02d}:{:02d} and {:02d}:{:02d}".format(score, int(times[0]/60), int(times[0]%60), int(times[1]/60), int(times[1]%60)))
 
 
 if text_clips:
@@ -285,7 +329,7 @@ for videofile in config["files"]:
     for clip in videofile["clips"]:
         start_time = parse_time(clip["start"]) + videofile["start_time"]
         end_time = parse_time(clip["end"]) + videofile["start_time"]
-        filename = os.path.join(output_dir, "clip.{:02d}.{:02d}.mp4".format(config["game_date"], int(start_time/60), int(start_time%60)))
+        filename = os.path.join(output_dir, "clip.{:02d}.{:02d}.mp4".format(int(start_time/60), int(start_time%60)))
         subclip = video_clip.subclip(t_start=start_time, t_end=end_time)
 
         effects = clip.get("effects", []) + config.get("clip_effects", [])
