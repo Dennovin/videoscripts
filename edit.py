@@ -274,7 +274,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
         logging.info("Generating label: {}".format(label["name"]))
 
         timer_after = timers[label["after"]]
-        label["start"] = timer_after.start + timer_after.total_length() + 1
+        label["start"] = timer_after.start + timer_after.total_length()
 
         for next_timer_start in sorted(timer_starts):
             if next_timer_start > label["start"]:
