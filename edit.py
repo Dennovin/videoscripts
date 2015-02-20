@@ -71,6 +71,29 @@ def color_rgba(c):
 def gradient_rgba(start_color, end_color, pct):
     return tuple(int(i1 + (i2 - i1) * pct) for i1, i2 in zip(color_rgba(start_color), color_rgba(end_color)))
 
+def merge(a, b):
+    if isinstance(a, list) and isinstance(b, list):
+        return a + b
+
+    elif isinstance(a, dict) and isinstance(b, dict):
+        merged = {}
+
+        for key in a.keys() + b.keys():
+            if key in a and key in b:
+                merged[key] = merge(a[key], b[key])
+            else:
+                merged[key] = a.get(key, b.get(key))
+
+        return merged
+
+    elif isinstance(a, list):
+        return a + [b]
+
+    elif b is None:
+        return a
+
+    else:
+        return b
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -104,16 +127,21 @@ while config_files:
 
             config_files.append(fn)
 
-        config.update(file_config)
+    config = merge(config, file_config)
 
 ssamp = config["supersampling"]
 scale = 1.0 / float(ssamp)
+
+videofiles = {}
+for i, videofile in enumerate(config["files"]):
+    videofiles[videofile["name"]] = merge(videofiles.get(videofile["name"], {"order": i}), videofile)
+video_list = sorted(videofiles.values(), key=lambda x: x["order"])
 
 logging.info("Output directory is: {}".format(output_dir))
 
 # Concatenate
 input_clips = []
-for videofile in config["files"]:
+for videofile in video_list:
     if not os.path.isfile(videofile["name"]):
         for dirname in search_dirs:
             if os.path.isfile(os.path.join(dirname, videofile["name"])):
@@ -123,7 +151,7 @@ for videofile in config["files"]:
     logging.info("Loading clip: {}".format(os.path.abspath(videofile["name"])))
 
     videofile["clip"] = VideoFileClip(videofile["name"])
-    videofile["start_time"] = sum(i.get("length", 0) for i in config["files"])
+    videofile["start_time"] = sum(i.get("length", 0) for i in video_list)
     videofile["length"] = videofile["clip"].duration
     input_clips.append(videofile["clip"])
 
@@ -223,7 +251,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
     timers = {}
     labels = {}
 
-    for videofile in config["files"]:
+    for videofile in video_list:
         for timer_event in videofile.get("timer_events", []):
             if "timer" in timer_event:
                 timers[timer_event["timer"]] = timers.get(timer_event["timer"], {"name": timer_event["timer"]})
@@ -298,7 +326,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
     home_goals = []
     away_goals = []
 
-    for videofile in config["files"]:
+    for videofile in video_list:
         for goal in videofile.get("goals", []):
             if goal["team"] == "home":
                 home_goals.append(parse_time(goal["time"]) + videofile["start_time"])
@@ -340,7 +368,7 @@ if "num_samples" in config:
 logging.info("Generating video clips.")
 
 all_clips = []
-for videofile in config["files"]:
+for videofile in video_list:
     for clip in videofile.get("clips", []):
         start_time = parse_time(clip["start"]) + videofile["start_time"]
         end_time = parse_time(clip["end"]) + videofile["start_time"]
@@ -354,14 +382,17 @@ for videofile in config["files"]:
         subclip.write_videofile(filename)
         all_clips.append(subclip)
 
-filename_base = "{} - {} vs. {}".format(
-    config["game_date"],
-    re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["away_team"]["name"]))),
-    re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["home_team"]["name"]))),
+output_filename = config["output_file"].format(
+    game_date=config["game_date"],
+    away_team=re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["away_team"]["name"]))),
+    home_team=re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["home_team"]["name"]))),
 )
 
-clipped_video = concatenate_videoclips(all_clips)
-clipped_video.write_videofile(os.path.join(output_dir, "{} - Clipped.mp4".format(filename_base)))
+if "write_full" in config:
+    video_clip.write_videofile(os.path.join(output_dir, output_filename))
+else:
+    clipped_video = concatenate_videoclips(all_clips)
+    clipped_video.write_videofile(os.path.join(output_dir, output_filename))
 
-video_clip.write_videofile(os.path.join(output_dir, "{}.mp4".format(filename_base)))
+
 
