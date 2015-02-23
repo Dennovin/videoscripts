@@ -33,7 +33,7 @@ class VideoEditor(object):
         42: lambda x: x.add_goal,
         28: lambda x: x.add_timer_event,
         41: lambda x: x.props.Set("org.mpris.MediaPlayer2.Player", "Rate", 3 - x.props.Get("org.mpris.MediaPlayer2.Player", "Rate")),
-        65: lambda x: x.iface.PlayPause,
+        65: lambda x: x.iface.PlayPause(),
         113: lambda x: x.iface.Seek(-5000000),
         114: lambda x: x.iface.Seek(5000000),
     }
@@ -50,6 +50,7 @@ class VideoEditor(object):
         self.home_team = Tkinter.StringVar()
         self.away_color = Tkinter.StringVar()
         self.home_color = Tkinter.StringVar()
+        self.game_date = Tkinter.StringVar()
 
         self.bus = dbus.SessionBus()
         self.player = self.bus.get_object("org.mpris.MediaPlayer2.vlc", "/org/mpris/MediaPlayer2")
@@ -67,10 +68,9 @@ class VideoEditor(object):
 
         Tkinter.mainloop()
 
-    def key(self):
-        print "pressed {} ({})".format(event.keysym, event.keycode)
+    def key(self, event):
         if event.keycode in self.key_actions:
-            key_actions[event.keycode](self)
+            self.key_actions[event.keycode](self)
 
     def widget(self, widget_name):
         return self.window.nametowidget(widget_name)
@@ -154,38 +154,74 @@ class VideoEditor(object):
 
         return current_video_file
 
-    def video_time():
+    def video_time(self):
         return float(self.props.Get("org.mpris.MediaPlayer2.Player", "Position") / 1000000)
 
-    def start_clip():
+    def start_clip(self):
         self.current_clip_start = video_time()
 
-    def end_clip():
+    def end_clip(self):
         if self.current_clip_start is not None:
             clip = {"start": self.current_clip_start, "end": video_time()}
-            videofiles[self.current_filename]["clips"].append(clip)
+            self.videofiles[self.current_filename]["clips"].append(clip)
             self.widget("clips_listbox").insert(Tkinter.END, format_clip(clip))
 
-    def add_timer_event():
+    def add_timer_event(self):
         event = {"time": video_time()}
-        videofiles[self.current_filename]["timer_events"].append(event)
+        self.videofiles[self.current_filename]["timer_events"].append(event)
         self.widget("game_events_listbox").insert(Tkinter.END, format_timer(event))
 
-    def add_goal():
+    def add_goal(self):
         event = {"time": video_time()}
-        videofiles[self.current_filename]["goals"].append(event)
+        self.videofiles[self.current_filename]["goals"].append(event)
         self.widget("game_events_listbox").insert(Tkinter.END, format_goal(event))
 
-    def save_config():
-        print yaml.dump(self.videofiles)
+    def save_config(self):
+        with open(os.path.join(self.current_dir.get(), "game.yaml.new"), "w") as fh:
+            fh.write('home_team:\n')
+            fh.write('  name: {}\n'.format(self.home_team.get()))
+            fh.write('  color: {}\n'.format(self.home_color.get()))
+            fh.write('\n')
+            fh.write('away_team:\n')
+            fh.write('  name: {}\n'.format(self.away_team.get()))
+            fh.write('  color: {}\n'.format(self.away_color.get()))
+            fh.write('\n')
+            fh.write('game_date: {}\n'.format(self.game_date.get()))
+            fh.write('\n')
+            fh.write('files:\n')
+
+            for fn in sorted(self.videofiles.keys()):
+                fh.write('- name: "{}"\n'.format(fn))
+                fh.write('  goals:\n')
+                for goal in self.videofiles[fn]["goals"]:
+                    fh.write('  - {{ team: away, time: "{}" }}\n'.format(format_time(goal["time"])))
+                fh.write('  timer_events:\n')
+                for event in self.videofiles[fn]["timer_events"]:
+                    if "time" in event:
+                        fh.write('  - {{ timer: fixme, event: fixme, time: "{}", length: "fixme" }}\n'.format(format_time(event["time"])))
+                fh.write('\n')
+
+        with open(os.path.join(self.current_dir.get(), "clips.yaml.new"), "w") as fh:
+            fh.write('include:\n')
+            fh.write('- defaults.yaml\n')
+            fh.write('- game.yaml\n')
+            fh.write('\n')
+            fh.write('files:\n')
+
+            for fn in sorted(self.videofiles.keys()):
+                fh.write('- name: "{}"\n'.format(fn))
+                fh.write('  clips:\n')
+                for clip in self.videofiles[fn]["clips"]:
+                    fh.write('  - {{ start: "{}", end: "{}" }}\n'.format(format_time(clip["start"]), format_time(clip["end"])))
+                fh.write('\n')
 
 window = Tkinter.Tk()
 editor = VideoEditor(window)
 
-Tkinter.Button(window, text="Choose Directory", command=editor.change_dir).pack()
+Tkinter.Button(window, text="Choose Directory", command=editor.change_dir).pack(pady=10)
 
 team_frame = Tkinter.Frame(window, name="team")
-team_frame.pack()
+team_frame.pack(padx=10, pady=10)
 Tkinter.Label(team_frame, text="Away Team:").grid(row=0, column=0)
 Tkinter.Entry(team_frame, textvariable=editor.away_team).grid(row=0, column=1)
 Tkinter.Canvas(team_frame, width=15, height=15, borderwidth=1, name="away_color").grid(row=0, column=2, padx=5)
@@ -193,6 +229,9 @@ Tkinter.Canvas(team_frame, width=15, height=15, borderwidth=1, name="away_color"
 Tkinter.Label(team_frame, text="Home Team:").grid(row=1, column=0)
 Tkinter.Entry(team_frame, textvariable=editor.home_team).grid(row=1, column=1)
 Tkinter.Canvas(team_frame, width=15, height=15, borderwidth=1, name="home_color").grid(row=1, column=2, padx=5)
+
+Tkinter.Label(team_frame, text="Game Date:").grid(row=2, column=0)
+Tkinter.Entry(team_frame, textvariable=editor.game_date).grid(row=2, column=1)
 
 Tkinter.Label(window, text="Files:").pack()
 Tkinter.Listbox(window, name="files_listbox").pack()
@@ -202,6 +241,8 @@ Tkinter.Listbox(window, name="game_events_listbox").pack()
 
 Tkinter.Label(window, text="Clips:").pack()
 Tkinter.Listbox(window, name="clips_listbox").pack()
+
+Tkinter.Button(window, text="Save", command=editor.save_config).pack(pady=10)
 
 window.bind("<Key>", editor.key)
 
