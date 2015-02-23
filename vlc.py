@@ -2,6 +2,7 @@
 import dbus
 import Tkinter
 import tkFileDialog
+import tkColorChooser
 import os
 import pprint
 import yaml
@@ -43,7 +44,12 @@ class VideoEditor(object):
         self.videofiles = {}
         self.current_selected_file = None
         self.current_clip_start = None
+
         self.current_dir = Tkinter.StringVar()
+        self.away_team = Tkinter.StringVar()
+        self.home_team = Tkinter.StringVar()
+        self.away_color = Tkinter.StringVar()
+        self.home_color = Tkinter.StringVar()
 
         self.bus = dbus.SessionBus()
         self.player = self.bus.get_object("org.mpris.MediaPlayer2.vlc", "/org/mpris/MediaPlayer2")
@@ -52,6 +58,13 @@ class VideoEditor(object):
 
     def start(self):
         self.update_boxes()
+
+        self.away_color.trace("w", self.update_colors)
+        self.home_color.trace("w", self.update_colors)
+
+        self.widget("team.away_color").bind("<Button-1>", lambda x: self.change_color(self.away_color))
+        self.widget("team.home_color").bind("<Button-1>", lambda x: self.change_color(self.home_color))
+
         Tkinter.mainloop()
 
     def key(self):
@@ -84,11 +97,21 @@ class VideoEditor(object):
                     self.videofiles[videofile["name"]]["timer_events"].append(event)
                 for goal in videofile.get("goals", []):
                     self.videofiles[videofile["name"]]["goals"].append(goal)
-        print yamldata
+            if "away_team" in data:
+                self.away_team.set(data["away_team"]["name"])
+                self.away_color.set(data["away_team"]["color"])
+            if "home_team" in data:
+                self.home_team.set(data["home_team"]["name"])
+                self.home_color.set(data["home_team"]["color"])
 
         self.widget("files_listbox").delete(0, Tkinter.END)
         for fn in sorted(self.videofiles.keys()):
             self.widget("files_listbox").insert(Tkinter.END, fn)
+
+    def change_color(self, var):
+        (rgb, hx) = tkColorChooser.askcolor(var.get())
+        if hx is not None:
+            var.set(hx)
 
     def update_boxes(self, event=None):
         selected = self.widget("files_listbox").curselection()
@@ -111,6 +134,12 @@ class VideoEditor(object):
                 self.current_selected_file = filename
 
         self.window.after(500, self.update_boxes)
+
+    def update_colors(self, *args):
+        if self.away_color.get():
+            self.widget("team.away_color").config(background=self.away_color.get())
+        if self.home_color.get():
+            self.widget("team.home_color").config(background=self.home_color.get())
 
     @property
     def current_filename(self):
@@ -153,11 +182,17 @@ class VideoEditor(object):
 window = Tkinter.Tk()
 editor = VideoEditor(window)
 
-filename_frame = Tkinter.Frame(window)
-filename_frame.pack()
+Tkinter.Button(window, text="Choose Directory", command=editor.change_dir).pack()
 
-Tkinter.Label(filename_frame, textvariable=editor.current_dir).pack(side=Tkinter.LEFT)
-Tkinter.Button(filename_frame, text="Change", command=editor.change_dir).pack(side=Tkinter.LEFT)
+team_frame = Tkinter.Frame(window, name="team")
+team_frame.pack()
+Tkinter.Label(team_frame, text="Away Team:").grid(row=0, column=0)
+Tkinter.Entry(team_frame, textvariable=editor.away_team).grid(row=0, column=1)
+Tkinter.Canvas(team_frame, width=15, height=15, borderwidth=1, name="away_color").grid(row=0, column=2, padx=5)
+
+Tkinter.Label(team_frame, text="Home Team:").grid(row=1, column=0)
+Tkinter.Entry(team_frame, textvariable=editor.home_team).grid(row=1, column=1)
+Tkinter.Canvas(team_frame, width=15, height=15, borderwidth=1, name="home_color").grid(row=1, column=2, padx=5)
 
 Tkinter.Label(window, text="Files:").pack()
 Tkinter.Listbox(window, name="files_listbox").pack()
