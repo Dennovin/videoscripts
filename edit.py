@@ -129,9 +129,9 @@ while config_files:
 
     config = merge(config, file_config)
 
-ssamp = config["supersampling"]
+ssamp = config.get("supersampling", 1)
 scale = 1.0 / float(ssamp)
-sample_times = []
+sample_times = set()
 
 # Merge video file lists, but maintain their order
 videofiles = {}
@@ -298,7 +298,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
             .set_pos((int(timer_left + (timer_width - timer.clip.w) * scale / 2), label_top))
 
         text_clips.append(moving_timer)
-        sample_times.append(timer.start)
+        sample_times.add(timer.start)
 
     # Just labels
     for label in labels.values():
@@ -323,7 +323,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
             .set_pos((int(timer_left + (timer_width - text_clip.w) * scale / 2), label_top))
 
         text_clips.append(text_clip)
-        sample_times.append(label["start"])
+        sample_times.add(label["start"])
 
     # Organize list of goals
     home_goals = []
@@ -343,7 +343,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
                              color="rgba(255, 255, 255, 204)", stroke_color="rgba(0, 0, 0, 204)", stroke_width=0.5*ssamp) \
                              .fx(vfx.resize, scale)
         text_clips.append(text_clip.set_pos((home_score_left, label_top)).set_start(times[0]).set_end(times[1]))
-        sample_times.append(times[0])
+        sample_times.add(times[0])
 
         logging.info("Home team score is {} between {} and {}".format(score, format_time(times[0]), format_time(times[1])))
 
@@ -353,7 +353,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
                              color="white", stroke_color="black", stroke_width=0.5*ssamp) \
                              .fx(vfx.resize, scale)
         text_clips.append(text_clip.set_pos((away_score_left, label_top)).set_start(times[0]).set_end(times[1]))
-        sample_times.append(times[0])
+        sample_times.add(times[0])
 
         logging.info("Away team score is {} between {} and {}".format(score, format_time(times[0]), format_time(times[1])))
 
@@ -362,7 +362,7 @@ if text_clips:
     video_clip = CompositeVideoClip([video_clip] + text_clips)
 
 # Generate sample images
-for sample_time in sample_times:
+for sample_time in sorted(sample_times):
     logging.info("Generating sample image at {}".format(format_time(sample_time)))
     ic = video_clip.to_ImageClip(t=sample_time)
     Image.fromarray(ic.img).save(os.path.join(output_dir, "sample.{}.png".format(format_time(sample_time, "{m:02d}.{s:05.2f}"))), "PNG")
@@ -370,20 +370,27 @@ for sample_time in sample_times:
 # Generate video file(s)
 logging.info("Generating video clips.")
 
+clip_times = []
 all_clips = []
 for videofile in video_list:
     for clip in videofile.get("clips", []):
         start_time = parse_time(clip["start"]) + videofile["start_time"]
         end_time = parse_time(clip["end"]) + videofile["start_time"]
-        filename = os.path.join(output_dir, "clip.{}.mp4".format(format_time(start_time, "{m:02d}.{s:02.0f}")))
-        subclip = video_clip.subclip(t_start=start_time, t_end=end_time)
+        clip_times.append({"start": start_time, "end": end_time, "effects": clip.get("effects", []) + config.get("clip_effects", [])})
 
-        effects = clip.get("effects", []) + config.get("clip_effects", [])
-        for effect in effects:
-            subclip = subclip.fx(getattr(vfx, effect[0]), *effect[1:])
+if config.get("clip_events", False):
+    for sample_time in sorted(sample_times):
+        clip_times.append({"start": sample_time - 5, "end": sample_time + 5, "effects": config.get("clip_effects", [])})
 
-        subclip.write_videofile(filename)
-        all_clips.append(subclip)
+for clip_time in clip_times:
+    filename = os.path.join(output_dir, "clip.{}.mp4".format(format_time(clip_time["start"], "{m:02d}.{s:02.0f}")))
+    subclip = video_clip.subclip(t_start=clip_time["start"], t_end=clip_time["end"])
+
+    for effect in clip_time["effects"]:
+        subclip = subclip.fx(getattr(vfx, effect[0]), *effect[1:])
+
+    subclip.write_videofile(filename)
+    all_clips.append(subclip)
 
 output_filename = config["output_file"].format(
     game_date=config["game_date"],
