@@ -60,7 +60,7 @@ class Timer(object):
 
 
 def parse_time(s):
-    return sum([int(v) * 60 ** k for k, v in enumerate(reversed(s.split(":")))])
+    return sum([float(v) * 60 ** k for k, v in enumerate(reversed(s.split(":")))])
 
 def format_time(s, fmt="{m:02d}:{s:05.2f}"):
     return fmt.format(m=int(s/60), s=float(s)%60)
