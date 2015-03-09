@@ -12,6 +12,9 @@ from moviepy.editor import *
 from unidecode import unidecode
 import logging
 
+sys.path.append(os.path.join(os.path.dirname(__file__), "lib"))
+from Youtube import YoutubeUploader
+
 
 class Timer(object):
     @classmethod
@@ -101,6 +104,7 @@ config = {}
 config_files = sys.argv[1:]
 main_config_file = config_files[0]
 output_dir = os.path.dirname(os.path.abspath(main_config_file))
+config["output_dir"] = output_dir
 
 search_dirs = set()
 for config_file in config_files:
@@ -336,6 +340,9 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
             else:
                 away_goals.append(parse_time(goal["time"]) + videofile["start_time"])
 
+    config["home_score"] = len(home_goals)
+    config["away_score"] = len(away_goals)
+
     # Generate score labels
     for score, times in enumerate(zip([0] + sorted(home_goals), sorted(home_goals) + [video_clip.duration])):
         text_clip = TextClip(txt=str(score), font=config["team_score_font"], fontsize=config["team_score_font_size"]*ssamp,
@@ -404,5 +411,8 @@ else:
     clipped_video = concatenate_videoclips(all_clips)
     clipped_video.write_videofile(os.path.join(output_dir, output_filename))
 
+if "youtube" in config:
+    uploader = YoutubeUploader(config)
+    uploader.upload(output_filename)
 
 
