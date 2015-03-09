@@ -160,7 +160,7 @@ for videofile in video_list:
 video_clip = concatenate_videoclips(input_clips)
 
 # Flip
-if config["flip"]:
+if config.get("flip", False):
     video_clip = vfx.rotate(video_clip, 180)
 
 # Scoreboard
