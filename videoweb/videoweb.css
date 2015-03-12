@@ -1,5 +1,6 @@
 body {
     font-family: "PT Sans";
+    overflow: hidden;
 }
 
 div.boxes {
@@ -59,6 +60,7 @@ div.box div.row {
 
 div.box div.row.selectable {
     cursor: pointer;
+    border-bottom: 1px solid #aaa;
 }
 
 div.box div.row.selectable:hover:not(.selected) {
@@ -73,6 +75,7 @@ div.box div.row.selected {
 div.box div.row input[type=text] {
     font-family: "PT Sans", sans-serif;
     padding: 2px 5px;
+    border: 1px solid #aaa;
 }
 
 div.box div.row input.color {

@@ -18,6 +18,27 @@
     <video id="video-object" class="video-js vjs-default-skin" controls="true" width="1280" height="720"></video>
 
     <div class="boxes">
+      <div class="box current-clip">
+        <div class="title">Current Clip</div>
+
+        <div class="box-body">
+          <div class="labels">
+            <label for="clip-start">Start Time:</label>
+            <label for="clip-end">End Time:</label>
+          </div>
+
+          <div class="inputs">
+            <div class="row">
+              <input type="text" name="clip-start" id="clip-start" />
+            </div>
+
+            <div class="row">
+              <input type="text" name="clip-end" id="clip-end" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="box game-info">
         <div class="title">Game Info</div>
 
@@ -50,6 +71,8 @@
         <div class="title">Files Loaded</div>
 
         <div class="box-body">
+          <div class="inputs">
+          </div>
         </div>
       </div>
 
@@ -57,13 +80,17 @@
         <div class="title">Game Events</div>
 
         <div class="box-body">
+          <div class="inputs">
+          </div>
         </div>
       </div>
 
-      <div class="box timer-events">
+      <div class="box video-clips">
         <div class="title">Selected Video Clips</div>
 
         <div class="box-body">
+          <div class="inputs">
+          </div>
         </div>
       </div>
     </div>
