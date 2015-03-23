@@ -58,7 +58,7 @@ var videoweb = function() {
             }
             data += '    timer_events:\n';
             for(j in videofiles[i].timer_events) {
-                var event = videofiles[i].timer_events;
+                var event = videofiles[i].timer_events[j];
                 data += '    - { timer: ' + event.name + ', event: ' + event.event + ', time: "' + formatTime(event.time) + '", length: "' + event.length + '" }\n';
             }
 
@@ -149,8 +149,6 @@ var videoweb = function() {
         events.sort(function(a, b) { return a.time - b.time; });
 
         $.each(events, function(i, event) {
-            console.log(event);
-
             var infocells = [
                 $("<div/>").addClass("infocell").text(formatTime(event.time)),
                 $("<div/>").addClass("infocell").text(event.type)
@@ -166,8 +164,6 @@ var videoweb = function() {
         var container = $(".video-clips .inputs");
         container.empty();
         $.each(clips, function(i, clip) {
-            console.log(clip);
-
             var infocells = [
                 $("<div/>").addClass("infocell").text(clip.file),
                 $("<div/>").addClass("infocell").text(formatTime(clip.start)),
@@ -237,13 +233,10 @@ var videoweb = function() {
     }
 
     function readKey(e) {
-        console.log(e.which);
-
         switch(e.which) {
         case 73:  // I
             currentclip.start = player.currentTime();
             currentclip.file = currentvideo.filename;
-            console.log(currentvideo);
             updateCurrentClip();
             break;
 
@@ -258,10 +251,6 @@ var videoweb = function() {
 
         case 71:  // G
             addGoal(player.currentTime());
-            break;
-
-        case 83:  // S
-            console.log("save");
             break;
 
         case 84:  // T
