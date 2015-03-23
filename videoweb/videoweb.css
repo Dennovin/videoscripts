@@ -1,3 +1,5 @@
+@import url(http://fonts.googleapis.com/css?family=PT+Sans:400,700,400italic,700italic|Inconsolata);
+
 body {
     font-family: "PT Sans";
     overflow: hidden;
@@ -85,4 +87,14 @@ div.box div.row input.color {
 
 div.box div.row input:not(.color) {
     flex-grow: 1;
+}
+
+div.box div.row div.infocell {
+    flex-grow: 1;
+}
+
+div.box div.yaml {
+    padding: 1px 5px;
+    font-family: "Inconsolata", "Courier New", monospace;
+    white-space: pre;
 }

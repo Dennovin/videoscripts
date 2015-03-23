@@ -19,14 +19,78 @@ var videoweb = function() {
         });
 
         $("input.datepicker").datepicker({dateFormat: "yy-mm-dd"});
+
+        updateYamlFiles();
     });
 
     function formatTime(seconds) {
         var minutes = parseInt(seconds / 60);
         seconds = seconds % 60;
 
-        var str = (minutes < 10 ? "0" : "") + minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+        var str = (minutes < 10 ? "0" : "") + minutes + ":";
+        str += (seconds < 10 ? "0" : "") + parseInt(seconds) + ".";
+
+        var cs = parseInt((seconds - parseInt(seconds)) * 100);
+        str += (cs < 10 ? "0" : "") + cs;
+
         return str;
+    }
+
+    function updateGameFile() {
+        data = 'home_team:\n' +
+            '  name: ' + $("input[name=home-team]").val() + '\n' +
+            '  color: "' + $("input[name=home-team-color]").val() + '"\n' +
+            '\n' +
+            'away_team:\n' +
+            '  name: ' + $("input[name=away-team]").val() + '\n' +
+            '  color: "' + $("input[name=away-team-color]").val() + '"\n' +
+            '\n' +
+            'game_date: ' + $("input[name=game-date]").val() + '\n' +
+            '\n';
+
+        data += 'files:\n';
+        for(i in videofiles) {
+            data += '  - name: "' + videofiles[i].filename + '"\n';
+            data += '    goals:\n';
+            for(j in videofiles[i].goals) {
+                var goal = videofiles[i].goals[j];
+                data += '    - { team: "' + goal.team + '", time: "' + formatTime(goal.time) + '" }\n';
+            }
+            data += '    timer_events:\n';
+            for(j in videofiles[i].timer_events) {
+                var event = videofiles[i].timer_events;
+                data += '    - { timer: ' + event.name + ', event: ' + event.event + ', time: "' + formatTime(event.time) + '", length: "' + event.length + '" }\n';
+            }
+
+            data += '\n';
+        }
+
+        $(".game-yaml").text(data);
+    }
+
+    function updateClipsFile() {
+        data = 'include:\n' +
+            ' - defaults.yaml\n' +
+            ' - game.yaml\n' +
+            '\n';
+
+        data += "files:\n";
+        for(i in videofiles) {
+            data += '  - name: "' + videofiles[i].filename + '"\n';
+            data += '    clips:\n';
+            for(j in videofiles[i].clips) {
+                var clip = videofiles[i].clips[j];
+                data += '    - { start: "' + clip.start + '", end: "' + clip.end + '" }\n';
+            }
+            data += '\n';
+        }
+
+        $(".clips-yaml").text(data);
+    }
+
+    function updateYamlFiles() {
+        updateGameFile();
+        updateClipsFile();
     }
 
     function resizePlayer() {
@@ -67,6 +131,37 @@ var videoweb = function() {
         container.children(".row").click(selectVideoFile);
     }
 
+    function updateGameEvents() {
+        var events = [];
+        var container = $(".timer-events .inputs");
+        container.empty();
+
+        $.each(currentvideo.timer_events, function(i, event) {
+            var event = {"time": event.time, "type": "Timer " + event.name + " " + event.event};
+            events.push(event);
+        });
+
+        $.each(currentvideo.goals, function(i, goal) {
+            var event = {"time": goal.time, "type": goal.team + " Goal"};
+            events.push(event);
+        });
+
+        events.sort(function(a, b) { return a.time - b.time; });
+
+        $.each(events, function(i, event) {
+            console.log(event);
+
+            var infocells = [
+                $("<div/>").addClass("infocell").text(formatTime(event.time)),
+                $("<div/>").addClass("infocell").text(event.type)
+            ];
+
+            $("<div/>").addClass("row selectable").append(infocells).appendTo(container);
+        });
+
+        container.children(".row").click(selectGameEvent);
+    }
+
     function updateClipList() {
         var container = $(".video-clips .inputs");
         container.empty();
@@ -74,9 +169,9 @@ var videoweb = function() {
             console.log(clip);
 
             var infocells = [
-                $("<div/>").addClass("").text(clip.file),
-                $("<div/>").addClass("").text(formatTime(clip.start)),
-                $("<div/>").addClass("").text(formatTime(clip.end))
+                $("<div/>").addClass("infocell").text(clip.file),
+                $("<div/>").addClass("infocell").text(formatTime(clip.start)),
+                $("<div/>").addClass("infocell").text(formatTime(clip.end))
             ];
 
             $("<div/>").addClass("row selectable").attr("start", clip.start).append(infocells).appendTo(container);
@@ -99,13 +194,31 @@ var videoweb = function() {
         $("video").attr("src", $this.attr("videourl"));
     }
 
+    function selectGameEvent() {
+    }
+
     function saveCurrentClip() {
         if(currentclip.start && currentclip.end) {
             clips.push(currentclip);
             currentclip = {};
             updateClipList();
             updateCurrentClip();
+            updateYamlFiles();
         }
+    }
+
+    function addTimerEvent(eventtime) {
+        var event = {"timer": "Untitled", "event": "start", "time": eventtime, "length": "24:00"};
+        currentvideo.timer_events.push(event);
+        updateGameEvents();
+        updateYamlFiles();
+    }
+
+    function addGoal(eventtime) {
+        var event = {"team": "away", "time": eventtime};
+        currentvideo.goals.push(event);
+        updateGameEvents();
+        updateYamlFiles();
     }
 
     function divDrop(e) {
@@ -117,7 +230,7 @@ var videoweb = function() {
         $.each(e.originalEvent.dataTransfer.files, function(i, file) {
             var videourl = window.URL.createObjectURL(file);
 
-            videofiles.push({"url": videourl, "filename": file.name});
+            videofiles.push({"url": videourl, "filename": file.name, "clips": [], "goals": [], "timer_events": []});
         });
 
         updateVideoFiles();
@@ -144,11 +257,15 @@ var videoweb = function() {
             break;
 
         case 71:  // G
-            console.log("GOAL at %s", player.currentTime());
+            addGoal(player.currentTime());
+            break;
+
+        case 83:  // S
+            console.log("save");
             break;
 
         case 84:  // T
-            console.log("TIMER EVENT at %s", player.currentTime());
+            addTimerEvent(player.currentTime());
             break;
 
         case 190: // >
