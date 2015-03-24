@@ -1,6 +1,6 @@
 var videoweb = function() {
     var player, origWidth, origHeight;
-    var videofiles = [], clips = [];
+    var videofiles = [];
     var currentvideo = {}, currentclip = {};
 
     $(document).ready(function() {
@@ -11,6 +11,7 @@ var videoweb = function() {
         $(".timer-events").on("click", ".selectable.row.timer", selectTimer);
         $(".editbox.goal").on("change", "input, select", editGoal);
         $(".editbox.timer").on("change", "input, select", editTimer);
+        $(".box.game-info").on("change", "input, select", updateYamlFiles);
 
         // Set up and resize player
         player = videojs("video-object");
@@ -76,7 +77,7 @@ var videoweb = function() {
             data += '    timer_events:\n';
             for(j in videofiles[i].timer_events) {
                 var event = videofiles[i].timer_events[j];
-                data += '    - { timer: ' + event.name + ', event: ' + event.event + ', time: "' + formatTime(event.time) + '", length: "' + event.length + '" }\n';
+                data += '    - { timer: ' + event.name + ', event: ' + event.event + ', time: "' + formatTime(event.time) + '" }\n';
             }
 
             data += '\n';
@@ -97,7 +98,7 @@ var videoweb = function() {
             data += '    clips:\n';
             for(j in videofiles[i].clips) {
                 var clip = videofiles[i].clips[j];
-                data += '    - { start: "' + clip.start + '", end: "' + clip.end + '" }\n';
+                data += '    - { start: "' + formatTime(clip.start) + '", end: "' + formatTime(clip.end) + '" }\n';
             }
             data += '\n';
         }
@@ -180,14 +181,16 @@ var videoweb = function() {
     function updateClipList() {
         var container = $(".video-clips .inputs");
         container.empty();
-        $.each(clips, function(i, clip) {
-            var infocells = [
-                $("<div/>").addClass("infocell").text(clip.file),
-                $("<div/>").addClass("infocell").text(formatTime(clip.start)),
-                $("<div/>").addClass("infocell").text(formatTime(clip.end))
-            ];
+        $.each(videofiles, function(i, videofile) {
+            $.each(videofile.clips, function(j, clip) {
+                var infocells = [
+                    $("<div/>").addClass("infocell").text(clip.file),
+                    $("<div/>").addClass("infocell").text(formatTime(clip.start)),
+                    $("<div/>").addClass("infocell").text(formatTime(clip.end))
+                ];
 
-            $("<div/>").addClass("row selectable").attr("start", clip.start).append(infocells).appendTo(container);
+                $("<div/>").addClass("row selectable").attr("start", clip.start).append(infocells).appendTo(container);
+            });
         });
     }
 
@@ -293,7 +296,7 @@ var videoweb = function() {
 
     function saveCurrentClip() {
         if(currentclip.start && currentclip.end) {
-            clips.push(currentclip);
+            currentvideo.clips.push(currentclip);
             currentclip = {};
             updateClipList();
             updateCurrentClip();

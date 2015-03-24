@@ -98,6 +98,7 @@ div.box div.yaml {
     font-family: "Inconsolata", "Courier New", monospace;
     white-space: pre;
     overflow-y: scroll;
+    max-height: 10em;
 }
 
 div.editbox {
