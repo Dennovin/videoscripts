@@ -10,6 +10,7 @@ var videoweb = function() {
         $(".timer-events").on("click", ".selectable.row.goal", selectGoal);
         $(".timer-events").on("click", ".selectable.row.timer", selectTimer);
         $(".editbox.goal").on("change", "input, select", editGoal);
+        $(".editbox.timer").on("change", "input, select", editTimer);
 
         // Set up and resize player
         player = videojs("video-object");
@@ -150,7 +151,7 @@ var videoweb = function() {
         var container = $(".timer-events .inputs").not(".editbox .inputs");
 
         $.each(currentvideo.timer_events, function(i, event) {
-            var event = {"idx": i, "time": event.time, "type": "timer", "title": "Timer " + event.name + " " + event.event};
+            var event = {"idx": i, "time": event.time, "type": "timer", "title": (event.event.substring(0, 1).toUpperCase() + event.event.slice(1)) + " " + event.timer};
             events.push(event);
         });
 
@@ -249,6 +250,45 @@ var videoweb = function() {
     }
 
     function selectTimer() {
+        var $this = $(this);
+        console.log("selected timer: %s", $this);
+
+        var isSelected = $this.hasClass("selected");
+        var editbox = $(".editbox.timer");
+        var event = currentvideo.timer_events[$this.attr("idx")];
+
+        editbox.hide();
+        $this.closest(".inputs").find(".selectable").removeClass("selected");
+
+        if(!isSelected) {
+            $this.addClass("selected");
+
+            var offset = $this.offset();
+            editbox.find("input[name=timer-time]").val(formatTime(event.time));
+            editbox.find("input[name=timer-name]").val(event.timer);
+            editbox.find("select[name=timer-event]").val(event.event);
+            editbox.detach().insertAfter($this).show();
+        }
+    }
+
+    function editTimer() {
+        var selected = $(".timer-events .row.timer.selected");
+        var event = currentvideo.timer_events[selected.attr("idx")];
+
+        $(".editbox.timer").find(".error").removeClass("error");
+
+        try {
+            event.time = parseTime($(".editbox.timer input[name=timer-time]").val());
+        }
+        catch(err) {
+            $(".editbox.timer input[name=timer-time]").addClass("error");
+        }
+
+        event.timer = $(".editbox.timer input[name=timer-name]").val();
+        event.event = $(".editbox.timer select[name=timer-event]").val();
+
+        updateGameEvents();
+        updateYamlFiles();
     }
 
     function saveCurrentClip() {
@@ -262,7 +302,7 @@ var videoweb = function() {
     }
 
     function addTimerEvent(eventtime) {
-        var event = {"timer": "Untitled", "event": "start", "time": eventtime, "length": "24:00"};
+        var event = {"timer": "Untitled", "event": "start", "time": eventtime};
         currentvideo.timer_events.push(event);
         updateGameEvents();
         updateYamlFiles();
