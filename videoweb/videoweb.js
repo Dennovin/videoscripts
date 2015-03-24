@@ -1,7 +1,7 @@
 var videoweb = function() {
     var player, origWidth, origHeight;
     var videofiles = [];
-    var currentvideo = {}, currentclip = {};
+    var currentvideo = null, currentclip = {};
 
     $(document).ready(function() {
 
@@ -210,7 +210,6 @@ var videoweb = function() {
 
     function selectGoal() {
         var $this = $(this);
-        console.log("selected goal: %s", $this);
 
         var isSelected = $this.hasClass("selected");
         var editbox = $(".editbox.goal");
@@ -230,8 +229,6 @@ var videoweb = function() {
     }
 
     function editGoal() {
-        console.log("edited");
-
         var selected = $(".timer-events .row.goal.selected");
         var goal = currentvideo.goals[selected.attr("idx")];
 
@@ -244,17 +241,14 @@ var videoweb = function() {
             $(".editbox.goal input[name=goal-time]").addClass("error");
         }
 
-        console.log($(".editbox.goal"));
         goal.team = $(".editbox.goal select[name=goal-team]").val();
 
-        console.log($(".editbox.goal"));
         updateGameEvents();
         updateYamlFiles();
     }
 
     function selectTimer() {
         var $this = $(this);
-        console.log("selected timer: %s", $this);
 
         var isSelected = $this.hasClass("selected");
         var editbox = $(".editbox.timer");
@@ -331,6 +325,10 @@ var videoweb = function() {
         });
 
         updateVideoFiles();
+
+        if(!currentvideo) {
+            $(".files-loaded .inputs .row").first().click();
+        }
     }
 
     function readKey(e) {
