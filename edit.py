@@ -253,45 +253,45 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
     text_clips.append(home_label.set_pos((home_left, label_top)).set_start(0).set_end(video_clip.duration))
     text_clips.append(away_label.set_pos((away_left, label_top)).set_start(0).set_end(video_clip.duration))
 
-    # Organize list of timers
-    timers = {}
-    labels = {}
+    # Organize list of timers/labels
+    timers = config.get("timers", [])
 
-    for videofile in video_list:
-        for timer_event in videofile.get("timer_events", []):
-            if "timer" in timer_event:
-                timers[timer_event["timer"]] = timers.get(timer_event["timer"], {"name": timer_event["timer"]})
+    for timer in timers:
+        if not hasattr(timer, "length"):
+            # Just a label, no associated events
+            continue
 
-                if timer_event["event"] == "start":
-                    timers[timer_event["timer"]]["start"] = parse_time(timer_event["time"]) + videofile["start_time"]
-                    timers[timer_event["timer"]]["length"] = parse_time(timer_event["length"])
-                    timers[timer_event["timer"]]["end"] = timers[timer_event["timer"]]["start"] + parse_time(timer_event["length"])
+        timer["pauses"] = []
+        timer["unpauses"] = []
 
-                elif timer_event["event"] == "pause":
-                    timers[timer_event["timer"]]["pauses"] = timers[timer_event["timer"]].get("pauses", [])
-                    timers[timer_event["timer"]]["pauses"].append({"start": parse_time(timer_event["time"]) + videofile["start_time"]})
+        for videofile in video_list:
+            for timer_event in videofile.get("timer_events", []):
+                if timer_event.get("timer", None) == timer.name:
+                    if timer_event["event"] == "start":
+                        timer["start"] = parse_time(timer_event["time"]) + videofile["start_time"]
+                    elif timer_event["event"] == "pause":
+                        timer["pauses"].append({"start": parse_time(timer_event["time"]) + videofile["start_time"]})
+                    elif timer_event["event"] == "unpause":
+                        timer["unpauses"].append(parse_time(timer_event["time"]) + videofile["start_time"])
 
-                elif timer_event["event"] == "unpause":
-                    timers[timer_event["timer"]]["unpauses"] = timers[timer_event["timer"]].get("unpauses", [])
-                    timers[timer_event["timer"]]["unpauses"].append(parse_time(timer_event["time"]) + videofile["start_time"])
-
-            elif "label" in timer_event:
-                labels[timer_event["label"]] = labels.get(timer_event["label"], {"name": timer_event["label"]})
-                labels[timer_event["label"]]["after"] = timer_event["after"]
-
-    timer_starts = [t["start"] for t in timers.values() if "start" in t]
+    timer_starts = [t["start"] for t in timers if "start" in t]
     timer_starts.append(video_clip.duration)
 
-    # Timers with actual timers
-    for timer in timers.values():
+    # Generate actual timers first
+    for i, timer in enumerate(timers):
+        if not "length" in timer:
+            continue
+
         logging.info("Generating timer: {}".format(timer["name"]))
+
+        timer["length"] = parse_time(timer["length"])
 
         for pause in zip(sorted(timer.get("pauses", []), key=lambda x: x["start"]), sorted(timer.get("unpauses", []))):
             pause[0]["start"] = pause[0]["start"] - timer["start"]
             pause[0]["end"] = pause[1] - timer["start"]
 
-        timers[timer["name"]] = Timer.new_from_dict(timer)
-        timer = timers[timer["name"]]
+        timers[i] = Timer.new_from_dict(timer)
+        timer = timers[i]
         timer.clip = TextClip(txt=timer.text(), font=config["timer_font"], fontsize=config["timer_font_size"]*ssamp, method="label",
                               color="white", stroke_color="black", align="West")
 
@@ -304,30 +304,32 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
         text_clips.append(moving_timer)
         sample_times.add(timer.start)
 
-    # Just labels
-    for label in labels.values():
-        if "after" not in label:
+    # Generate labels, now that we can figure out when they start and end
+    for i, timer in enumerate(timers):
+        if hasattr(timer, "start"):
             continue
 
-        logging.info("Generating label: {}".format(label["name"]))
+        logging.info("Generating label: {}".format(timer["name"]))
 
-        timer_after = timers[label["after"]]
-        label["start"] = timer_after.start + timer_after.total_length()
+        if i == 0:
+            timer["start"] = 0
+        else:
+            timer["start"] = timers[i-1].start + timers[i-1].total_length()
 
-        for next_timer_start in sorted(timer_starts):
-            if next_timer_start > label["start"]:
-                label["end"] = next_timer_start
-                break
+        try:
+            timer["end"] = timers[i+1].start
+        except IndexError:
+            timer["end"] = video_clip.duration
 
-        logging.info("  Label {} starts at {} and ends at {}".format(label["name"], format_time(label["start"]), format_time(label["end"])))
+        logging.info("  Label {} starts at {} and ends at {}".format(timer["name"], format_time(timer["start"]), format_time(timer["end"])))
 
-        text_clip = TextClip(txt=label["name"], font=config["timer_font"], fontsize=config["timer_font_size"]*ssamp, method="label",
+        text_clip = TextClip(txt=timer["name"], font=config["timer_font"], fontsize=config["timer_font_size"]*ssamp, method="label",
                              color="white", stroke_color="black", align="West")
-        text_clip = text_clip.fx(vfx.resize, scale).set_start(label["start"]).set_end(label["end"]) \
+        text_clip = text_clip.fx(vfx.resize, scale).set_start(timer["start"]).set_end(timer["end"]) \
             .set_pos((int(timer_left + (timer_width - text_clip.w) * scale / 2), label_top))
 
         text_clips.append(text_clip)
-        sample_times.add(label["start"])
+        sample_times.add(timer["start"])
 
     # Organize list of goals
     home_goals = []
