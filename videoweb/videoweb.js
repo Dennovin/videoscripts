@@ -4,22 +4,32 @@ var videoweb = function() {
     var currentvideo = {}, currentclip = {};
 
     $(document).ready(function() {
+
+        // Bind events
+        $(".files-loaded").on("click", ".row", selectVideoFile);
+        $(".timer-events").on("click", ".selectable.row.goal", selectGoal);
+        $(".timer-events").on("click", ".selectable.row.timer", selectTimer);
+        $(".editbox.goal").on("change", "input, select", editGoal);
+
+        // Set up and resize player
         player = videojs("video-object");
-
-        setupFileReader();
-
         origWidth = $("#video-object").width();
         origHeight = $("#video-object").height();
-
         resizePlayer();
         $(window).resize(resizePlayer);
 
+        // Watch for files being dragged/dropped
+        setupFileReader();
+
+        // Set up color boxes
         $("input.color").change(function(e) {
             $(this).css("background-color", $(this).val());
         });
 
+        // Set up datepickers
         $("input.datepicker").datepicker({dateFormat: "yy-mm-dd"});
 
+        // Display initial YAML
         updateYamlFiles();
     });
 
@@ -34,6 +44,12 @@ var videoweb = function() {
         str += (cs < 10 ? "0" : "") + cs;
 
         return str;
+    }
+
+    function parseTime(timestr) {
+        return timestr.split(":").reverse()
+            .map(function(v, i) { return parseFloat(v) * Math.pow(60, i); })
+            .reduce(function(p, c) { return p + c; });
     }
 
     function updateGameFile() {
@@ -122,42 +138,42 @@ var videoweb = function() {
     }
 
     function updateVideoFiles() {
-        var container = $(".files-loaded .inputs");
+        var container = $(".files-loaded .inputs").not(".editbox .inputs");
         container.empty();
         $.each(videofiles, function(i, videofile) {
             $("<div/>").addClass("row selectable").text(videofile.filename).attr("videourl", videofile.url).appendTo(container);
         });
-
-        container.children(".row").click(selectVideoFile);
     }
 
     function updateGameEvents() {
         var events = [];
-        var container = $(".timer-events .inputs");
-        container.empty();
+        var container = $(".timer-events .inputs").not(".editbox .inputs");
 
         $.each(currentvideo.timer_events, function(i, event) {
-            var event = {"time": event.time, "type": "Timer " + event.name + " " + event.event};
+            var event = {"idx": i, "time": event.time, "type": "timer", "title": "Timer " + event.name + " " + event.event};
             events.push(event);
         });
 
         $.each(currentvideo.goals, function(i, goal) {
-            var event = {"time": goal.time, "type": goal.team + " Goal"};
+            var event = {"idx": i, "time": goal.time, "type": "goal", "title": "Goal (" + (goal.team.substring(0, 1).toUpperCase() + goal.team.slice(1)) + ")"};
             events.push(event);
         });
 
         events.sort(function(a, b) { return a.time - b.time; });
 
         $.each(events, function(i, event) {
+            var row = container.find("." + event.type + "[idx=" + event.idx + "]");
+            if(row.length == 0) {
+                row = $("<div/>").addClass("row selectable").addClass(event.type).attr("idx", event.idx).appendTo(container);
+            }
+
             var infocells = [
                 $("<div/>").addClass("infocell").text(formatTime(event.time)),
-                $("<div/>").addClass("infocell").text(event.type)
+                $("<div/>").addClass("infocell").text(event.title)
             ];
 
-            $("<div/>").addClass("row selectable").append(infocells).appendTo(container);
+            row.empty().append(infocells);
         });
-
-        container.children(".row").click(selectGameEvent);
     }
 
     function updateClipList() {
@@ -172,13 +188,11 @@ var videoweb = function() {
 
             $("<div/>").addClass("row selectable").attr("start", clip.start).append(infocells).appendTo(container);
         });
-
-        container.children(".row").click(selectVideoFile);
     }
 
     function selectVideoFile() {
         var $this = $(this);
-        $this.closest(".inputs").children(".selectable").removeClass("selected");
+        $this.closest(".inputs").find(".selectable").removeClass("selected");
         $this.addClass("selected");
 
         $.each(videofiles, function(i, videofile) {
@@ -190,7 +204,51 @@ var videoweb = function() {
         $("video").attr("src", $this.attr("videourl"));
     }
 
-    function selectGameEvent() {
+    function selectGoal() {
+        var $this = $(this);
+        console.log("selected goal: %s", $this);
+
+        var isSelected = $this.hasClass("selected");
+        var editbox = $(".editbox.goal");
+        var goal = currentvideo.goals[$this.attr("idx")];
+
+        editbox.hide();
+        $this.closest(".inputs").find(".selectable").removeClass("selected");
+
+        if(!isSelected) {
+            $this.addClass("selected");
+
+            var offset = $this.offset();
+            editbox.find("input[name=goal-time]").val(formatTime(goal.time));
+            editbox.find("select[name=goal-team]").val(goal.team);
+            editbox.detach().insertAfter($this).show();
+        }
+    }
+
+    function editGoal() {
+        console.log("edited");
+
+        var selected = $(".timer-events .row.goal.selected");
+        var goal = currentvideo.goals[selected.attr("idx")];
+
+        $(".editbox.goal").find(".error").removeClass("error");
+
+        try {
+            goal.time = parseTime($(".editbox.goal input[name=goal-time]").val());
+        }
+        catch(err) {
+            $(".editbox.goal input[name=goal-time]").addClass("error");
+        }
+
+        console.log($(".editbox.goal"));
+        goal.team = $(".editbox.goal select[name=goal-team]").val();
+
+        console.log($(".editbox.goal"));
+        updateGameEvents();
+        updateYamlFiles();
+    }
+
+    function selectTimer() {
     }
 
     function saveCurrentClip() {

@@ -10,7 +10,7 @@ div.boxes {
     left: 1300px;
     right: 10px;
     top: 10px;
-    float: left;
+    height: 100%;
 }
 
 div.box {
@@ -97,4 +97,13 @@ div.box div.yaml {
     padding: 1px 5px;
     font-family: "Inconsolata", "Courier New", monospace;
     white-space: pre;
+    overflow-y: scroll;
 }
+
+div.editbox {
+    display: none;
+    padding: 10px 5px;
+    border-bottom: 1px solid #aaa;
+    background: linear-gradient(#ffffef, #f6f6df);
+}
+
