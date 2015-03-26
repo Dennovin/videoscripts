@@ -257,7 +257,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
     timers = config.get("timers", [])
 
     for timer in timers:
-        if not hasattr(timer, "length"):
+        if not "length" in timer:
             # Just a label, no associated events
             continue
 
@@ -266,7 +266,7 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
 
         for videofile in video_list:
             for timer_event in videofile.get("timer_events", []):
-                if timer_event.get("timer", None) == timer.name:
+                if timer_event.get("timer", None) == timer["name"]:
                     if timer_event["event"] == "start":
                         timer["start"] = parse_time(timer_event["time"]) + videofile["start_time"]
                     elif timer_event["event"] == "pause":
