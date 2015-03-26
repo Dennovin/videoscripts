@@ -206,6 +206,8 @@ var videoweb = function() {
         });
 
         $("video").attr("src", $this.attr("videourl"));
+        $(".editbox.goal").detach().appendTo("document");
+        $(".timer-events .inputs").empty();
     }
 
     function selectGoal() {
