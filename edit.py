@@ -415,6 +415,6 @@ else:
 
 if "youtube" in config:
     uploader = YoutubeUploader(config)
-    uploader.upload(output_filename)
+    uploader.upload(os.path.join(output_dir, output_filename))
 
 
