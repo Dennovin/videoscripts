@@ -85,6 +85,17 @@ div.box div.row.selected {
     font-weight: bold;
 }
 
+div.box div.row.selectable .delete {
+    display: none;
+}
+
+div.box div.row.selectable.selected .delete {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+}
+
 div.box div.row input[type=text] {
     font-family: "PT Sans", sans-serif;
     padding: 2px 5px;

@@ -9,7 +9,9 @@ var videoweb = function() {
         // Bind events
         $(".files-loaded").on("click", ".row", selectVideoFile);
         $(".timer-events").on("click", ".selectable.row.goal", selectGoal);
+        $(".timer-events").on("click", ".selectable.row.goal .delete", deleteGoal);
         $(".timer-events").on("click", ".selectable.row.timer", selectTimer);
+        $(".timer-events").on("click", ".selectable.row.timer .delete", deleteTimer);
         $(".editbox.goal").on("change", "input, select", editGoal);
         $(".editbox.timer").on("change", "input, select", editTimer);
         $(".box.game-info").on("change", "input, select", updateData);
@@ -192,11 +194,18 @@ var videoweb = function() {
 
             var infocells = [
                 $("<div/>").addClass("infocell").text(formatTime(event.time)),
-                $("<div/>").addClass("infocell").text(event.title)
+                $("<div/>").addClass("infocell").text(event.title),
+                $("<img/>").addClass("delete").attr("src", "delete.png")
             ];
 
             row.empty().append(infocells);
         });
+    }
+
+    function forceUpdateGameEvents() {
+        $(".editbox").detach().hide().appendTo("body");
+        $(".timer-events .inputs").empty();
+        updateGameEvents();
     }
 
     function updateClipList() {
@@ -227,9 +236,7 @@ var videoweb = function() {
         });
 
         $("video").attr("src", $this.attr("videourl"));
-        $(".editbox").detach().hide().appendTo("body");
-        $(".timer-events .inputs").empty();
-        updateGameEvents();
+        forceUpdateGameEvents();
     }
 
     function selectGoal() {
@@ -250,6 +257,28 @@ var videoweb = function() {
             editbox.find("select[name=goal-team]").val(goal.team);
             editbox.detach().insertAfter($this).show();
         }
+    }
+
+    function deleteGoal(e) {
+        var $this = $(this);
+        var row = $this.closest(".row.goal");
+
+        e.stopPropagation();
+
+        currentvideo.goals.splice(row.attr("idx"), 1);
+        forceUpdateGameEvents();
+        updateData();
+    }
+
+    function deleteTimer(e) {
+        var $this = $(this);
+        var row = $this.closest(".row.timer");
+
+        e.stopPropagation();
+
+        currentvideo.timer_events.splice(row.attr("idx"), 1);
+        forceUpdateGameEvents();
+        updateData();
     }
 
     function editGoal() {
