@@ -12,6 +12,7 @@ var videoweb = function() {
         $(".editbox.goal").on("change", "input, select", editGoal);
         $(".editbox.timer").on("change", "input, select", editTimer);
         $(".box.game-info").on("change", "input, select", updateYamlLinks);
+        $(".boxes").on("click", ".title", toggleBox);
 
         // Set up and resize player
         player = videojs("video-object");
@@ -34,6 +35,12 @@ var videoweb = function() {
         // Initialize download links
         updateYamlLinks();
     });
+
+    function toggleBox(e) {
+        $(this).closest(".box").toggleClass("collapsed");
+        e.preventDefault();
+        e.stopPropagation();
+    }
 
     function formatTime(seconds) {
         var minutes = parseInt(seconds / 60);

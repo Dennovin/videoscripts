@@ -28,10 +28,21 @@ div.box div.title {
     padding: 5px;
     background: linear-gradient(#f0f9ff, #a1dbff);
     border-bottom: 1px solid black;
+    cursor: pointer;
+    -webkit-user-select: none;
+}
+
+div.box.collapsed div.title {
+    background: linear-gradient(#efefef, #bfbfbf);
+    color: #4f4f4f;
 }
 
 div.box div.box-body {
     display: flex;
+}
+
+div.box.collapsed div.box-body {
+    display: none;
 }
 
 div.box div.labels {
