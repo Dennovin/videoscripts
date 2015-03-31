@@ -154,6 +154,10 @@ var videoweb = function() {
         $.each(videofiles, function(i, videofile) {
             $("<div/>").addClass("row selectable").text(videofile.filename).attr("videourl", videofile.url).appendTo(container);
         });
+
+        if(currentvideo) {
+            container.find(".row[videourl='" + currentvideo.url + "']").addClass("selected");
+        }
     }
 
     function updateGameEvents() {
