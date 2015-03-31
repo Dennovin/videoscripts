@@ -108,3 +108,15 @@ div.editbox {
     background: linear-gradient(#ffffef, #f6f6df);
 }
 
+div.links {
+    margin-top: 1em;
+}
+
+div.links a {
+    color: black;
+    margin-left: 3em;
+}
+
+div.links a:hover {
+    color: #001f3f;
+}

@@ -11,7 +11,7 @@ var videoweb = function() {
         $(".timer-events").on("click", ".selectable.row.timer", selectTimer);
         $(".editbox.goal").on("change", "input, select", editGoal);
         $(".editbox.timer").on("change", "input, select", editTimer);
-        $(".box.game-info").on("change", "input, select", updateYamlFiles);
+        $(".box.game-info").on("change", "input, select", updateYamlLinks);
 
         // Set up and resize player
         player = videojs("video-object");
@@ -31,8 +31,8 @@ var videoweb = function() {
         // Set up datepickers
         $("input.datepicker").datepicker({dateFormat: "yy-mm-dd"});
 
-        // Display initial YAML
-        updateYamlFiles();
+        // Initialize download links
+        updateYamlLinks();
     });
 
     function formatTime(seconds) {
@@ -54,7 +54,7 @@ var videoweb = function() {
             .reduce(function(p, c) { return p + c; });
     }
 
-    function updateGameFile() {
+    function updateGameLink() {
         data = 'home_team:\n' +
             '  name: ' + $("input[name=home-team]").val() + '\n' +
             '  color: "' + $("input[name=home-team-color]").val() + '"\n' +
@@ -83,10 +83,11 @@ var videoweb = function() {
             data += '\n';
         }
 
-        $(".game-yaml").text(data);
+        var blob = new Blob([data], { type: "text/x-yaml" });
+        $(".game-link").attr("href", window.URL.createObjectURL(blob));
     }
 
-    function updateClipsFile() {
+    function updateClipsLink() {
         data = 'include:\n' +
             ' - defaults.yaml\n' +
             ' - game.yaml\n' +
@@ -103,12 +104,13 @@ var videoweb = function() {
             data += '\n';
         }
 
-        $(".clips-yaml").text(data);
+        var blob = new Blob([data], { type: "text/x-yaml" });
+        $(".clips-link").attr("href", window.URL.createObjectURL(blob));
     }
 
-    function updateYamlFiles() {
-        updateGameFile();
-        updateClipsFile();
+    function updateYamlLinks() {
+        updateGameLink();
+        updateClipsLink();
     }
 
     function resizePlayer() {
@@ -206,8 +208,9 @@ var videoweb = function() {
         });
 
         $("video").attr("src", $this.attr("videourl"));
-        $(".editbox.goal").detach().appendTo("document");
+        $(".editbox").detach().hide().appendTo("body");
         $(".timer-events .inputs").empty();
+        updateGameEvents();
     }
 
     function selectGoal() {
@@ -246,7 +249,7 @@ var videoweb = function() {
         goal.team = $(".editbox.goal select[name=goal-team]").val();
 
         updateGameEvents();
-        updateYamlFiles();
+        updateYamlLinks();
     }
 
     function selectTimer() {
@@ -287,7 +290,7 @@ var videoweb = function() {
         event.event = $(".editbox.timer select[name=timer-event]").val();
 
         updateGameEvents();
-        updateYamlFiles();
+        updateYamlLinks();
     }
 
     function saveCurrentClip() {
@@ -296,7 +299,7 @@ var videoweb = function() {
             currentclip = {};
             updateClipList();
             updateCurrentClip();
-            updateYamlFiles();
+            updateYamlLinks();
         }
     }
 
@@ -304,14 +307,14 @@ var videoweb = function() {
         var event = {"timer": "Untitled", "event": "start", "time": eventtime};
         currentvideo.timer_events.push(event);
         updateGameEvents();
-        updateYamlFiles();
+        updateYamlLinks();
     }
 
     function addGoal(eventtime) {
         var event = {"team": "away", "time": eventtime};
         currentvideo.goals.push(event);
         updateGameEvents();
-        updateYamlFiles();
+        updateYamlLinks();
     }
 
     function divDrop(e) {
@@ -366,20 +369,24 @@ var videoweb = function() {
             player.playbackRate(player.playbackRate() / 1.5);
             break;
 
-        case 90:  // Z
+        case 191:  // /
             player.playbackRate(1.0);
             break;
 
-        case 32:
+        case 32:  // space
             player.paused() ? player.play() : player.pause();
             break;
 
-        case 39:
+        case 39:  // right
             player.currentTime(player.currentTime() + 5);
+            break;
 
-        case 37:
+        case 37:  // left
             player.currentTime(player.currentTime() - 5);
+            break;
 
+        default:
+            console.log(e.which);
         }
     }
 
