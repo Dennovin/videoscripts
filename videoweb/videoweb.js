@@ -1,7 +1,8 @@
 var videoweb = function() {
     var player, origWidth, origHeight;
-    var videofiles = [];
     var currentvideo = null, currentclip = {};
+    var storage = window.localStorage;
+    var videofiles = [];
 
     $(document).ready(function() {
 
@@ -11,7 +12,7 @@ var videoweb = function() {
         $(".timer-events").on("click", ".selectable.row.timer", selectTimer);
         $(".editbox.goal").on("change", "input, select", editGoal);
         $(".editbox.timer").on("change", "input, select", editTimer);
-        $(".box.game-info").on("change", "input, select", updateYamlLinks);
+        $(".box.game-info").on("change", "input, select", updateData);
         $(".boxes").on("click", ".title", toggleBox);
 
         // Set up and resize player
@@ -33,7 +34,7 @@ var videoweb = function() {
         $("input.datepicker").datepicker({dateFormat: "yy-mm-dd"});
 
         // Initialize download links
-        updateYamlLinks();
+        updateData();
     });
 
     function toggleBox(e) {
@@ -115,9 +116,16 @@ var videoweb = function() {
         $(".clips-link").attr("href", window.URL.createObjectURL(blob));
     }
 
-    function updateYamlLinks() {
+    function updateLocalStorage() {
+        $.each(videofiles, function(i, videofile) {
+            storage.setItem(videofile.filename, JSON.stringify(videofile));
+        });
+    }
+
+    function updateData() {
         updateGameLink();
         updateClipsLink();
+        updateLocalStorage();
     }
 
     function resizePlayer() {
@@ -260,7 +268,7 @@ var videoweb = function() {
         goal.team = $(".editbox.goal select[name=goal-team]").val();
 
         updateGameEvents();
-        updateYamlLinks();
+        updateData();
     }
 
     function selectTimer() {
@@ -301,7 +309,7 @@ var videoweb = function() {
         event.event = $(".editbox.timer select[name=timer-event]").val();
 
         updateGameEvents();
-        updateYamlLinks();
+        updateData();
     }
 
     function saveCurrentClip() {
@@ -310,7 +318,7 @@ var videoweb = function() {
             currentclip = {};
             updateClipList();
             updateCurrentClip();
-            updateYamlLinks();
+            updateData();
         }
     }
 
@@ -318,14 +326,14 @@ var videoweb = function() {
         var event = {"timer": "Untitled", "event": "start", "time": eventtime};
         currentvideo.timer_events.push(event);
         updateGameEvents();
-        updateYamlLinks();
+        updateData();
     }
 
     function addGoal(eventtime) {
         var event = {"team": "away", "time": eventtime};
         currentvideo.goals.push(event);
         updateGameEvents();
-        updateYamlLinks();
+        updateData();
     }
 
     function divDrop(e) {
@@ -336,11 +344,14 @@ var videoweb = function() {
         var reader = new FileReader();
         $.each(e.originalEvent.dataTransfer.files, function(i, file) {
             var videourl = window.URL.createObjectURL(file);
+            var videofile = file.name in storage ? JSON.parse(storage.getItem(file.name)) : {"filename": file.name, "clips": [], "goals": [], "timer_events": []};
+            videofile.url = videourl;
 
-            videofiles.push({"url": videourl, "filename": file.name, "clips": [], "goals": [], "timer_events": []});
+            videofiles.push(videofile);
         });
 
         updateVideoFiles();
+        updateLocalStorage();
 
         if(!currentvideo) {
             $(".files-loaded .inputs .row").first().click();
@@ -395,9 +406,6 @@ var videoweb = function() {
         case 37:  // left
             player.currentTime(player.currentTime() - 5);
             break;
-
-        default:
-            console.log(e.which);
         }
     }
 
