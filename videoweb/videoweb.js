@@ -87,7 +87,7 @@ var videoweb = function() {
             data += '    timer_events:\n';
             for(j in videofiles[i].timer_events) {
                 var event = videofiles[i].timer_events[j];
-                data += '    - { timer: ' + event.name + ', event: ' + event.event + ', time: "' + formatTime(event.time) + '" }\n';
+                data += '    - { timer: ' + event.timer + ', event: ' + event.event + ', time: "' + formatTime(event.time) + '" }\n';
             }
 
             data += '\n';
