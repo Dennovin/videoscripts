@@ -265,6 +265,9 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
         timer["unpauses"] = []
 
         for videofile in video_list:
+            if videofile.get("timer_events", None) is None:
+                continue
+
             for timer_event in videofile.get("timer_events", []):
                 if timer_event.get("timer", None) == timer["name"]:
                     if timer_event["event"] == "start":
