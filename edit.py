@@ -339,6 +339,9 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
     away_goals = []
 
     for videofile in video_list:
+        if videofile.get("goals", None) is None:
+            continue
+
         for goal in videofile.get("goals", []):
             if goal["team"] == "home":
                 home_goals.append(parse_time(goal["time"]) + videofile["start_time"])
@@ -385,6 +388,9 @@ logging.info("Generating video clips.")
 clip_times = []
 all_clips = []
 for videofile in video_list:
+    if videofile.get("clips", []) is None:
+        continue
+
     for clip in videofile.get("clips", []):
         start_time = parse_time(clip["start"]) + videofile["start_time"]
         end_time = parse_time(clip["end"]) + videofile["start_time"]
