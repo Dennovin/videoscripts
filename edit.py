@@ -5,6 +5,7 @@ import palette
 import sys
 import re
 import moviepy.video.fx.all as vfx
+import moviepy.video.tools.drawing as drawing
 import yaml
 from PIL import Image, ImageDraw, ImageFilter
 import numpy
@@ -17,10 +18,13 @@ from Youtube import YoutubeUploader
 
 
 class Timer(object):
+    clips = {}
+
     @classmethod
     def new_from_dict(cls, vals):
         obj = cls()
         obj.update(**vals)
+        obj.generate_clip()
         return obj
 
     def update(self, **kwargs):
@@ -30,11 +34,8 @@ class Timer(object):
     def __init__(self):
         self.pauses = []
 
-    def text(self):
-        return "\n".join([
-                "{} {} ".format(self.name, format_time(sec, "{m:02d}:{s:02.0f}"))
-                for sec in range(int(self.length) + 1)
-                ])
+    def text_at(self, sec):
+        return "{} {} ".format(self.name, format_time(sec, "{m:02d}:{s:02.0f}"))
 
     def total_length(self):
         duration = int(self.length) + 1
@@ -57,9 +58,33 @@ class Timer(object):
 
     def process(self, gf, t):
         timeleft = self.time_left(t)
-        min_pixel = int(timeleft * self.clip.h / (self.length + 1))
-        max_pixel = int((timeleft + 1) * self.clip.h / (self.length + 1)) + 1
         return gf(t)[min_pixel:max_pixel, :]
+
+    def generate_clip(self):
+        if not hasattr(self, "clip"):
+            clip_filename = os.path.join(timer_clips_dir, self.name)
+
+            if os.path.isdir(clip_filename):
+                logging.info("Loading timer clip from {}".format(clip_filename))
+                clip_files = sorted([os.path.join(clip_filename, f) for f in os.listdir(clip_filename) if not f.startswith(".")])
+                self.clip = ImageSequenceClip(clip_filename, fps=1, with_mask=True)
+
+            else:
+                logging.info("Timer clip not found, generating one and saving to {}".format(clip_filename))
+
+                textclips = []
+
+                for time in range(int(self.length) + 1):
+                    txt = TextClip(txt=self.text_at(time), font=config["timer_font"], fontsize=config["timer_font_size"]*ssamp, method="label",
+                                   color="white", stroke_color="black", align="West").set_start(time).set_duration(1)
+                    textclips.append(txt)
+
+                self.clip = CompositeVideoClip(textclips, bg_color=None)
+
+                os.mkdir(clip_filename)
+                self.clip.write_images_sequence(os.path.join(clip_filename, "timer%04d.png"), fps=1, withmask=True)
+
+        return self.clip
 
 
 def parse_time(s):
@@ -136,6 +161,19 @@ while config_files:
 ssamp = config.get("supersampling", 1)
 scale = 1.0 / float(ssamp)
 sample_times = set()
+
+write_threads = config.get("write_threads", 1)
+
+# Find directory where timer clips are stored
+timer_clips_dir = os.path.abspath(os.path.join(output_dir, "timer_clips"))
+while not os.path.isdir(timer_clips_dir):
+    new_dir = os.path.abspath(os.path.join(os.path.dirname(timer_clips_dir), os.pardir, "timer_clips"))
+    if new_dir == timer_clips_dir:
+        timer_clips_dir = os.path.abspath(os.path.join(output_dir, "timer_clips"))
+        os.mkdir(timer_clips_dir)
+    else:
+        timer_clips_dir = new_dir
+logging.info("Timer clips directory is: {}".format(timer_clips_dir))
 
 # Merge video file lists, but maintain their order
 videofiles = {}
@@ -295,12 +333,10 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
 
         timers[i] = Timer.new_from_dict(timer)
         timer = timers[i]
-        timer.clip = TextClip(txt=timer.text(), font=config["timer_font"], fontsize=config["timer_font_size"]*ssamp, method="label",
-                              color="white", stroke_color="black", align="West")
 
         logging.info("  Timer {} starts at {} and lasts {} (including {} pause(s))".format(timer.name, format_time(timer.start), format_time(timer.total_length()), len(timer.pauses)))
 
-        moving_timer = timer.clip.fl(timer.process, apply_to=["mask"]).fx(vfx.resize, scale) \
+        moving_timer = timer.clip.fl_time(timer.time_left, apply_to=["mask"]).fx(vfx.resize, scale) \
             .set_start(timer.start).set_duration(timer.total_length()) \
             .set_pos((int(timer_left + (timer_width - timer.clip.w) * scale / 2), label_top))
 
@@ -379,8 +415,8 @@ if text_clips:
 # Generate sample images
 for sample_time in sorted(sample_times):
     logging.info("Generating sample image at {}".format(format_time(sample_time)))
-    ic = video_clip.to_ImageClip(t=sample_time)
-    Image.fromarray(ic.img).save(os.path.join(output_dir, "sample.{}.png".format(format_time(sample_time, "{m:02d}.{s:05.2f}"))), "PNG")
+    image_fn = os.path.join(output_dir, "sample.{}.png".format(format_time(sample_time, "{m:02d}.{s:05.2f}")))
+    video_clip.save_frame(image_fn, t=sample_time)
 
 # Generate video file(s)
 logging.info("Generating video clips.")
@@ -388,7 +424,7 @@ logging.info("Generating video clips.")
 clip_times = []
 all_clips = []
 for videofile in video_list:
-    if videofile.get("clips", []) is None:
+    if videofile.get("clips", None) is None:
         continue
 
     for clip in videofile.get("clips", []):
@@ -407,7 +443,7 @@ for clip_time in clip_times:
     for effect in clip_time["effects"]:
         subclip = subclip.fx(getattr(vfx, effect[0]), *effect[1:])
 
-    subclip.write_videofile(filename)
+    subclip.write_videofile(filename, fps=30, threads=write_threads)
     all_clips.append(subclip)
 
 output_filename = config["output_file"].format(
@@ -417,10 +453,10 @@ output_filename = config["output_file"].format(
 )
 
 if "write_full" in config:
-    video_clip.write_videofile(os.path.join(output_dir, output_filename))
+    video_clip.write_videofile(os.path.join(output_dir, output_filename), fps=30, threads=write_threads)
 else:
     clipped_video = concatenate_videoclips(all_clips)
-    clipped_video.write_videofile(os.path.join(output_dir, output_filename))
+    clipped_video.write_videofile(os.path.join(output_dir, output_filename), fps=30, threads=write_threads)
 
 if "youtube" in config:
     uploader = YoutubeUploader(config)
