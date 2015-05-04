@@ -67,7 +67,7 @@ class Timer(object):
             if os.path.isdir(clip_filename):
                 logging.info("Loading timer clip from {}".format(clip_filename))
                 clip_files = sorted([os.path.join(clip_filename, f) for f in os.listdir(clip_filename) if not f.startswith(".")])
-                self.clip = ImageSequenceClip(clip_filename, fps=1, with_mask=True)
+                self.clip = ImageSequenceClip(clip_files, fps=1, with_mask=True)
 
             else:
                 logging.info("Timer clip not found, generating one and saving to {}".format(clip_filename))
