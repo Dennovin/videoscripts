@@ -454,7 +454,7 @@ output_filename = config["output_file"].format(
 
 if "write_full" in config:
     video_clip.write_videofile(os.path.join(output_dir, output_filename), fps=30, threads=write_threads)
-else:
+elif "clips_only" not in config:
     clipped_video = concatenate_videoclips(all_clips)
     clipped_video.write_videofile(os.path.join(output_dir, output_filename), fps=30, threads=write_threads)
 
