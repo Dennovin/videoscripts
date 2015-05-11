@@ -434,7 +434,7 @@ for videofile in video_list:
 
 if config.get("clip_events", False):
     for sample_time in sorted(sample_times):
-        clip_times.append({"start": sample_time - 5, "end": sample_time + 5, "effects": config.get("clip_effects", [])})
+        clip_times.append({"start": max(sample_time - 5, 0), "end": sample_time + 5, "effects": config.get("clip_effects", [])})
 
 for clip_time in clip_times:
     filename = os.path.join(output_dir, "clip.{}.mp4".format(format_time(clip_time["start"], "{m:02d}.{s:02.0f}")))
