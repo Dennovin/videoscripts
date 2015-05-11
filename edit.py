@@ -414,9 +414,10 @@ if text_clips:
 
 # Generate sample images
 for sample_time in sorted(sample_times):
-    logging.info("Generating sample image at {}".format(format_time(sample_time)))
     image_fn = os.path.join(output_dir, "sample.{}.png".format(format_time(sample_time, "{m:02d}.{s:05.2f}")))
-    video_clip.save_frame(image_fn, t=sample_time)
+    if not os.path.isfile(image_fn):
+        logging.info("Generating sample image at {}".format(format_time(sample_time)))
+        video_clip.save_frame(image_fn, t=sample_time)
 
 # Generate video file(s)
 logging.info("Generating video clips.")
@@ -443,7 +444,8 @@ for clip_time in clip_times:
     for effect in clip_time["effects"]:
         subclip = subclip.fx(getattr(vfx, effect[0]), *effect[1:])
 
-    subclip.write_videofile(filename, fps=30, threads=write_threads)
+    if not os.path.isfile(filename):
+        subclip.write_videofile(filename, fps=30, threads=write_threads)
     all_clips.append(subclip)
 
 output_filename = config["output_file"].format(
@@ -451,14 +453,17 @@ output_filename = config["output_file"].format(
     away_team=re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["away_team"]["name"]))),
     home_team=re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["home_team"]["name"]))),
 )
+output_filename = os.path.join(output_dir, output_filename)
 
 if "write_full" in config:
-    video_clip.write_videofile(os.path.join(output_dir, output_filename), fps=30, threads=write_threads)
+    video_clip.write_videofile(output_filename, fps=30, threads=write_threads)
 elif "clips_only" not in config:
     clipped_video = concatenate_videoclips(all_clips)
-    clipped_video.write_videofile(os.path.join(output_dir, output_filename), fps=30, threads=write_threads)
+    if not os.path.isfile(output_filename):
+        clipped_video.write_videofile(output_filename, fps=30, threads=write_threads)
 
 if "youtube" in config:
+    logging.info("Uploading to YouTube.")
     uploader = YoutubeUploader(config)
     uploader.upload(os.path.join(output_dir, output_filename))
 
