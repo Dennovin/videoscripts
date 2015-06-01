@@ -156,7 +156,7 @@ while config_files:
 
             config_files.append(fn)
 
-    config = merge(config, file_config)
+    config = merge(file_config, config)
 
 ssamp = config.get("supersampling", 1)
 scale = 1.0 / float(ssamp)
