@@ -101,6 +101,7 @@ var videoweb = function() {
         data = 'include:\n' +
             ' - defaults.yaml\n' +
             ' - game.yaml\n' +
+            ' - youtube.yaml\n' +
             '\n';
 
         data += "files:\n";
