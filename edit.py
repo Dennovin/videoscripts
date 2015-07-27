@@ -207,7 +207,7 @@ if config.get("flip", False):
 
 # Scoreboard
 text_clips = []
-if (config["home_team"] is not None) and (config["away_team"] is not None):
+if "home_team" in config and "away_team" in config:
     # Get size and position
     home_label = TextClip(txt=" "+config["home_team"]["name"], font=config["team_name_font"], fontsize=config["team_name_font_size"]*ssamp, method="label")
     away_label = TextClip(txt=" "+config["away_team"]["name"], font=config["team_name_font"], fontsize=config["team_name_font_size"]*ssamp, method="label")
@@ -310,10 +310,21 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
                 if timer_event.get("timer", None) == timer["name"]:
                     if timer_event["event"] == "start":
                         timer["start"] = parse_time(timer_event["time"]) + videofile["start_time"]
+                    elif timer_event["event"] == "end":
+                        timer["end"] = parse_time(timer_event["time"]) + videofile["start_time"]
                     elif timer_event["event"] == "pause":
                         timer["pauses"].append({"start": parse_time(timer_event["time"]) + videofile["start_time"]})
                     elif timer_event["event"] == "unpause":
                         timer["unpauses"].append(parse_time(timer_event["time"]) + videofile["start_time"])
+
+        total_length = parse_time(timer["length"])
+        for pause in zip(sorted(timer.get("pauses", []), key=lambda x: x["start"]), sorted(timer.get("unpauses", []))):
+            pause[0]["start"] = pause[0]["start"] - timer["start"]
+            pause[0]["end"] = pause[1] - timer["start"]
+            total_length += pause[0]["end"] - pause[0]["start"]
+
+        if "end" in timer:
+            timer["start"] = timer["end"] - total_length
 
     timer_starts = [t["start"] for t in timers if "start" in t]
     timer_starts.append(video_clip.duration)
@@ -326,10 +337,6 @@ if (config["home_team"] is not None) and (config["away_team"] is not None):
         logging.info("Generating timer: {}".format(timer["name"]))
 
         timer["length"] = parse_time(timer["length"])
-
-        for pause in zip(sorted(timer.get("pauses", []), key=lambda x: x["start"]), sorted(timer.get("unpauses", []))):
-            pause[0]["start"] = pause[0]["start"] - timer["start"]
-            pause[0]["end"] = pause[1] - timer["start"]
 
         timers[i] = Timer.new_from_dict(timer)
         timer = timers[i]
@@ -450,8 +457,8 @@ for clip_time in clip_times:
 
 output_filename = config["output_file"].format(
     game_date=config["game_date"],
-    away_team=re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["away_team"]["name"]))),
-    home_team=re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["home_team"]["name"]))),
+    away_team=re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["away_team"]["name"]))) if "away_team" in config else "",
+    home_team=re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["home_team"]["name"]))) if "home_team" in config else "",
 )
 output_filename = os.path.join(output_dir, output_filename)
 
