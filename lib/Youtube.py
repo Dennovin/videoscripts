@@ -18,11 +18,11 @@ class YoutubeUploader(object):
 
     def format_details(self, fmt):
         return fmt.format(
-            home_team=self.config["home_team"]["name"],
-            away_team=self.config["away_team"]["name"],
-            game_date=self.config["game_date"],
-            home_score=self.config["home_score"],
-            away_score=self.config["away_score"],
+            home_team=self.config["home_team"]["name"] if "home_team" in self.config else "",
+            away_team=self.config["away_team"]["name"] if "away_team" in self.config else "",
+            game_date=self.config.get("game_date", ""),
+            home_score=self.config.get("home_score", ""),
+            away_score=self.config.get("away_score", ""),
             )
 
     def find_file(self, filename):
