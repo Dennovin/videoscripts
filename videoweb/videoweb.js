@@ -67,11 +67,11 @@ var videoweb = function() {
     function updateGameLink() {
         data = 'home_team:\n' +
             '  name: ' + $("input[name=home-team]").val() + '\n' +
-            '  color: "' + $("input[name=home-team-color]").val() + '"\n' +
+            ($("input[name=home-team-color]").val() == "" ? "" : '  color: "' + $("input[name=home-team-color]").val() + '"\n') +
             '\n' +
             'away_team:\n' +
             '  name: ' + $("input[name=away-team]").val() + '\n' +
-            '  color: "' + $("input[name=away-team-color]").val() + '"\n' +
+            ($("input[name=away-team-color]").val() == "" ? "" : '  color: "' + $("input[name=away-team-color]").val() + '"\n') +
             '\n' +
             'game_date: ' + $("input[name=game-date]").val() + '\n' +
             '\n';
