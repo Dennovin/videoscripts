@@ -3,6 +3,7 @@ var videoweb = function() {
     var currentvideo = null, currentclip = {};
     var storage = window.localStorage;
     var videofiles = [];
+    var timerNames = ["1st", "2nd"];
 
     $(document).ready(function() {
 
@@ -353,7 +354,23 @@ var videoweb = function() {
     }
 
     function addTimerEvent(eventtime) {
-        var event = {"timer": "Untitled", "event": "start", "time": eventtime};
+        var timerNameIndex = 0;
+        var timerEvent = "start";
+
+        if(currentvideo.timer_events.length > 0) {
+            var lastEvent = currentvideo.timer_events[currentvideo.timer_events.length - 1];
+            timerNameIndex = timerNames.indexOf(lastEvent.timer);
+
+            if(timerNameIndex < timerNames.length - 1 && lastEvent.event == "end") {
+                timerNameIndex++;
+            } else if(lastEvent.event == "start" || lastEvent.event == "unpause") {
+                timerEvent = "end";
+            } else if(lastEvent.event == "pause") {
+                timerEvent = "unpause";
+            }
+        }
+
+        var event = {"timer": timerNames[timerNameIndex], "event": timerEvent, "time": eventtime};
         currentvideo.timer_events.push(event);
         updateGameEvents();
         updateData();
