@@ -227,12 +227,20 @@ if "home_team" in config and "away_team" in config:
     timer_left = home_score_left + score_width * scale
 
     # Generate scoreboard background and team name labels
-    home_color = palette.Color(config["home_team"]["color"])
+    if "color" in config["home_team"]:
+        home_color = palette.Color(config["home_team"]["color"])
+    elif "team_default_colors" in config:
+        home_color = palette.Color(filter(lambda x: x["name"] == config["home_team"]["name"], config["team_default_colors"])[0]["color"])
+
     home_color.a = 0.8
     home_color_dark = home_color.darker()
     home_color_light = home_color.lighter()
 
-    away_color = palette.Color(config["away_team"]["color"])
+    if "color" in config["away_team"]:
+        away_color = palette.Color(config["away_team"]["color"])
+    elif "team_default_colors" in config:
+        away_color = palette.Color(filter(lambda x: x["name"] == config["away_team"]["name"], config["team_default_colors"])[0]["color"])
+
     away_color.a = 0.8
     away_color_dark = away_color.darker()
     away_color_light = away_color.lighter()
