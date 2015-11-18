@@ -1,0 +1,44 @@
+---
+- hosts: all
+  tasks:
+  - lineinfile: state=present create=yes dest=/etc/apt/apt.conf.d/01proxy line='Acquire::http::Proxy "http://leviathan:3142";'
+  - file: path=/etc/apt/apt.conf.d/01proxy owner=root group=root mode=0644
+  - lineinfile: state=present dest=/etc/hosts line='192.168.121.1 leviathan'
+  - apt: update_cache=yes cache_valid_time=86400
+  - apt: pkg=nfs-common state=latest
+  - apt: pkg=tmux state=latest
+  - mount: name=/data fstype=nfs src=leviathan:/data state=mounted
+  - synchronize: src=/data/fonts/ dest=/usr/local/share/fonts/
+
+- hosts: web
+  tasks:
+  - apt: pkg={{ item }} state=latest
+    with_items:
+    - git
+    - build-essential
+    - nginx
+  - synchronize: src=videoweb/ dest=/wwwroot/
+  - file: path=/wwwroot owner=nobody group=nogroup
+  - template: src=nginx.conf dest=/etc/nginx/sites-available/videoweb.conf mode=0644
+  - file: path=/etc/nginx/sites-enabled/default state=absent
+  - file: src=/etc/nginx/sites-available/videoweb.conf dest=/etc/nginx/sites-enabled/videoweb.conf state=link
+  - service: name=nginx state=restarted
+
+- hosts: editor
+  tasks:
+  - apt: pkg={{ item }} state=latest
+    with_items:
+    - python
+    - python-pip
+    - python-dev
+    - imagemagick
+    - libmagickwand-dev
+    - zlib1g-dev
+    - libpng12-dev
+    - libfreeimage-dev
+  - synchronize: src={{ item }} dest=/editor/
+    with_items:
+    - requirements.txt
+    - edit.py
+    - lib
+  - pip: requirements=/editor/requirements.txt
