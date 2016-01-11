@@ -162,6 +162,10 @@ ssamp = config.get("supersampling", 1)
 scale = 1.0 / float(ssamp)
 sample_times = set()
 
+output_size = ((1280, 720))
+if "output_size" in config:
+    output_size = config["output_size"]
+
 write_threads = config.get("write_threads", 1)
 
 # Find directory where timer clips are stored
@@ -200,6 +204,7 @@ for videofile in video_list:
     input_clips.append(videofile["clip"])
 
 video_clip = concatenate_videoclips(input_clips)
+scale *= (video_clip.w / output_size[0])
 
 # Flip
 if config.get("flip", False):
@@ -432,7 +437,7 @@ for sample_time in sorted(sample_times):
     image_fn = os.path.join(output_dir, "sample.{}.png".format(format_time(sample_time, "{m:02d}.{s:05.2f}")))
     if not os.path.isfile(image_fn):
         logging.info("Generating sample image at {}".format(format_time(sample_time)))
-        video_clip.save_frame(image_fn, t=sample_time)
+        video_clip.resize(output_size).save_frame(image_fn, t=sample_time)
 
 # Generate video file(s)
 logging.info("Generating video clips.")
@@ -458,6 +463,8 @@ for clip_time in clip_times:
 
     for effect in clip_time["effects"]:
         subclip = subclip.fx(getattr(vfx, effect[0]), *effect[1:])
+
+    subclip = subclip.resize(output_size)
 
     if not os.path.isfile(filename):
         subclip.write_videofile(filename, fps=30, threads=write_threads)
