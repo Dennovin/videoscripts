@@ -99,6 +99,14 @@ def color_rgba(c):
 def gradient_rgba(start_color, end_color, pct):
     return tuple(int(i1 + (i2 - i1) * pct) for i1, i2 in zip(color_rgba(start_color), color_rgba(end_color)))
 
+def apply_effect(clip, effect):
+    if isinstance(effect[1], dict):
+        new_clip = clip.fx(getattr(vfx, effect[0]), **effect[1])
+    else:
+        new_clip = clip.fx(getattr(vfx, effect[0]), *effect[1:])
+
+    return new_clip
+
 def merge(a, b):
     if isinstance(a, list) and isinstance(b, list):
         return a + b
@@ -162,10 +170,7 @@ ssamp = config.get("supersampling", 1)
 scale = 1.0 / float(ssamp)
 sample_times = set()
 
-output_size = ((1280, 720))
-if "output_size" in config:
-    output_size = config["output_size"]
-
+output_size = config.get("output_size", (1920, 1080))
 write_threads = config.get("write_threads", 1)
 
 # Find directory where timer clips are stored
@@ -204,6 +209,11 @@ for videofile in video_list:
     input_clips.append(videofile["clip"])
 
 video_clip = concatenate_videoclips(input_clips)
+
+for effect in config.get("prefilter", []):
+    video_clip = apply_effect(video_clip, effect)
+
+video_clip = video_clip.resize(output_size)
 scale *= (video_clip.w / output_size[0])
 
 # Flip
@@ -428,16 +438,16 @@ if "home_team" in config and "away_team" in config:
 
         logging.info("Away team score is {} between {} and {}".format(score, format_time(times[0]), format_time(times[1])))
 
-
+composite_clip = video_clip
 if text_clips:
-    video_clip = CompositeVideoClip([video_clip] + text_clips)
+    composite_clip = CompositeVideoClip([video_clip] + text_clips)
 
 # Generate sample images
 for sample_time in sorted(sample_times):
     image_fn = os.path.join(output_dir, "sample.{}.png".format(format_time(sample_time, "{m:02d}.{s:05.2f}")))
     if not os.path.isfile(image_fn):
         logging.info("Generating sample image at {}".format(format_time(sample_time)))
-        video_clip.resize(output_size).save_frame(image_fn, t=sample_time)
+        composite_clip.save_frame(image_fn, t=sample_time)
 
 # Generate video file(s)
 logging.info("Generating video clips.")
@@ -451,7 +461,12 @@ for videofile in video_list:
     for clip in videofile.get("clips", []):
         start_time = parse_time(clip["start"]) + videofile["start_time"]
         end_time = parse_time(clip["end"]) + videofile["start_time"]
-        clip_times.append({"start": start_time, "end": end_time, "effects": clip.get("effects", []) + config.get("clip_effects", [])})
+        clip_times.append({
+            "start": start_time,
+            "end": end_time,
+            "pre_effects": clip.get("pre_effects", []) + config.get("clip_pre_effects", []),
+            "effects": clip.get("effects", []) + config.get("clip_effects", []),
+        })
 
 if config.get("clip_events", False):
     for sample_time in sorted(sample_times):
@@ -459,12 +474,18 @@ if config.get("clip_events", False):
 
 for clip_time in clip_times:
     filename = os.path.join(output_dir, "clip.{}.mp4".format(format_time(clip_time["start"], "{m:02d}.{s:02.0f}")))
-    subclip = video_clip.subclip(t_start=clip_time["start"], t_end=clip_time["end"])
+
+    subclip = video_clip
+    for effect in clip_time["pre_effects"]:
+        subclip = apply_effect(subclip, effect)
+
+    if text_clips:
+        subclip = CompositeVideoClip([subclip] + text_clips)
+
+    subclip = subclip.subclip(t_start=clip_time["start"], t_end=clip_time["end"])
 
     for effect in clip_time["effects"]:
-        subclip = subclip.fx(getattr(vfx, effect[0]), *effect[1:])
-
-    subclip = subclip.resize(output_size)
+        subclip = apply_effect(subclip, effect)
 
     if not os.path.isfile(filename):
         subclip.write_videofile(filename, fps=30, threads=write_threads)
