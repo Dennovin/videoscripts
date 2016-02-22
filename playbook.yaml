@@ -8,7 +8,7 @@
   - apt: pkg=nfs-common state=latest
   - apt: pkg=tmux state=latest
   - mount: name=/data fstype=nfs src=leviathan:/data state=mounted
-  - synchronize: src=/data/fonts/ dest=/usr/local/share/fonts/
+  - synchronize: src=fonts/ dest=/usr/local/share/fonts/
 
 - hosts: web
   tasks:
