@@ -150,6 +150,12 @@ var videoweb = function() {
     }
 
     function updateCurrentClip() {
+        if(player.duration()) {
+            currentvideo.duration = player.duration();
+        }
+
+        $("#clip-file").val(currentclip.file);
+
         if(currentclip.start) {
             $("#clip-start").val(formatTime(currentclip.start));
         } else {
@@ -420,7 +426,18 @@ var videoweb = function() {
 
     function saveCurrentClip() {
         if(currentclip.start && currentclip.end) {
-            currentvideo.clips.push(currentclip);
+            var clipvideo = currentvideo;
+            $.each(videofiles, function(i, videofile) {
+                if(videofile.filename == currentclip.file) {
+                    clipvideo = videofile;
+                }
+            });
+
+            if(clipvideo.filename != currentvideo.filename) {
+                currentclip.end += clipvideo.duration;
+            }
+
+            clipvideo.clips.push(currentclip);
             currentclip = {};
             updateClipList();
             updateCurrentClip();
