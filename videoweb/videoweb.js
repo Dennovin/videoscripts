@@ -258,7 +258,7 @@ var videoweb = function() {
 
         $("video").attr("src", $this.attr("videourl"));
         forceUpdateGameEvents();
-        updateClipList();
+        forceUpdateClipList();
     }
 
     function selectGoal() {
