@@ -514,6 +514,15 @@ var videoweb = function() {
             saveCurrentClip();
             break;
 
+        case 70:  // F
+            if(player.isFullscreen()) {
+                player.exitFullscreen();
+            } else {
+                player.requestFullscreen();
+            }
+
+            break;
+
         case 71:  // G
             addGoal(player.currentTime());
             break;
