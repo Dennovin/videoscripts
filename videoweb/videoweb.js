@@ -4,9 +4,9 @@ var videoweb = function() {
     var storage = window.localStorage;
     var videofiles = [];
     var timerNames = ["1st", "2nd"];
+    var zoomX, zoomY;
 
     $(document).ready(function() {
-
         // Bind events
         $(".files-loaded").on("click", ".row", selectVideoFile);
         $(".timer-events").on("click", ".selectable.row.goal", selectGoal);
@@ -20,6 +20,8 @@ var videoweb = function() {
         $(".editbox.clip").on("change", "input, select", editClip);
         $(".box.game-info").on("change", "input, select", updateData);
         $(".boxes").on("click", ".title", toggleBox);
+        $("body").on("click", "#video-object.zooming video, #zoom-box", zoomClick);
+        $("body").on("mousemove", "#video-object.zooming, #zoom-box", zoomMove);
 
         // Set up and resize player
         player = videojs("video-object");
@@ -60,6 +62,10 @@ var videoweb = function() {
         str += (cs < 10 ? "0" : "") + cs;
 
         return str;
+    }
+
+    function formatLoc(x, y) {
+        return "(" + Math.floor(x) + ", " + Math.floor(y) + ")";
     }
 
     function parseTime(timestr) {
@@ -114,7 +120,13 @@ var videoweb = function() {
             data += '    clips:\n';
             for(j in videofiles[i].clips) {
                 var clip = videofiles[i].clips[j];
-                data += '    - { start: "' + formatTime(clip.start) + '", end: "' + formatTime(clip.end) + '" }\n';
+                data += '    - { start: "' + formatTime(clip.start) + '", end: "' + formatTime(clip.end) + '"';
+                if(clip.zoom) {
+                    data += ', pre_effects: [["crop", ' + clip.zoom.x1 + ', ' + clip.zoom.y1 + ', ' + clip.zoom.x2 + ', ' + clip.zoom.y2
+                        + '], ["resize", {"width": ' + player.videoWidth() + ', "height": ' + player.videoHeight() + '}]]';
+                }
+
+                data += ' }\n';
             }
             data += '\n';
         }
@@ -166,6 +178,12 @@ var videoweb = function() {
             $("#clip-end").val(formatTime(currentclip.end));
         } else {
             $("#clip-end").val("");
+        }
+
+        if(currentclip.zoom) {
+            $("#clip-zoom").val(formatLoc(currentclip.zoom.x1, currentclip.zoom.y1) + " - " + formatLoc(currentclip.zoom.x2, currentclip.zoom.y2));
+        } else {
+            $("#clip-zoom").val("");
         }
     }
 
@@ -497,6 +515,78 @@ var videoweb = function() {
         }
     }
 
+    function getZoomValues() {
+    }
+
+    function zoomClick(e) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        if($("#zoom-box").hasClass("active")) {
+            var $videoObj = $("#video-object"), $zoomBox = $("#zoom-box");
+            var x1 = $zoomBox.offset().left - $videoObj.offset().left, y1 = $zoomBox.offset().top - $videoObj.offset().top;
+            var x2 = x1 + $zoomBox.width(), y2 = y1 + $zoomBox.height();
+
+            x1 = Math.floor(x1 / $videoObj.width() * player.videoWidth());
+            x2 = Math.floor(x2 / $videoObj.width() * player.videoWidth());
+            y1 = Math.floor(y1 / $videoObj.height() * player.videoHeight());
+            y2 = Math.floor(y2 / $videoObj.height() * player.videoHeight());
+
+            currentclip.zoom = {"x1": x1, "x2": x2, "y1": y1, "y2": y2};
+            updateCurrentClip();
+
+            $("#video-object").removeClass("zooming");
+        } else {
+            zoomX = e.pageX;
+            zoomY = e.pageY;
+
+            $("#zoom-box").css({
+                "left": e.pageX,
+                "top": e.pageY,
+                "width": 0,
+                "height": 0
+            });
+        }
+
+        $("#zoom-box").toggleClass("active");
+    }
+
+    function zoomMove(e) {
+        if($("#zoom-box").hasClass("active")) {
+            var $videoObj = $("#video-object");
+            var vminX = $videoObj.offset().left, vminY = $videoObj.offset().top;
+            var vmaxX = vminX + $videoObj.width(), vmaxY = vminY + $videoObj.height();
+            var evtX = Math.min(vmaxX, Math.max(vminX, e.pageX));
+            var evtY = Math.min(vmaxY, Math.max(vminY, e.pageY));
+            var aspect = $videoObj.width() / $videoObj.height();
+            var boxWidth = Math.abs(zoomX - evtX);
+            var boxHeight = Math.abs(zoomY - evtY);
+
+            if(aspect < boxWidth / boxHeight) {
+                boxHeight = boxWidth / aspect;
+            } else {
+                boxWidth = boxHeight * aspect;
+            }
+
+            var boxLeft = (evtX < zoomX) ? Math.max(vminX, zoomX - boxWidth) : Math.min(vmaxX - boxWidth, zoomX);
+            var boxTop = (evtY < zoomY) ? Math.max(vminY, zoomY - boxHeight) : Math.min(vmaxY - boxHeight, zoomY);
+
+            $("#zoom-box").css({
+                "left": boxLeft - 2,
+                "top": boxTop - 2,
+                "width": boxWidth - 4,
+                "height": boxHeight - 4
+            });
+        }
+    }
+
+    function toggleZoom(e) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        $("#video-object").toggleClass("zooming");
+    }
+
     function readKey(e) {
         switch(e.which) {
         case 73:  // I
@@ -529,6 +619,10 @@ var videoweb = function() {
 
         case 84:  // T
             addTimerEvent(player.currentTime());
+            break;
+
+        case 90:  // Z
+            toggleZoom(e);
             break;
 
         case 190: // >

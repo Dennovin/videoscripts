@@ -4,6 +4,7 @@ import os
 import palette
 import sys
 import re
+import moviepy.audio.fx.all as afx
 import moviepy.video.fx.all as vfx
 import moviepy.video.tools.drawing as drawing
 import yaml
@@ -100,10 +101,12 @@ def gradient_rgba(start_color, end_color, pct):
     return tuple(int(i1 + (i2 - i1) * pct) for i1, i2 in zip(color_rgba(start_color), color_rgba(end_color)))
 
 def apply_effect(clip, effect):
+    effect_name = getattr(vfx, effect[0], getattr(afx, effect[0], None))
+
     if isinstance(effect[1], dict):
-        new_clip = clip.fx(getattr(vfx, effect[0]), **effect[1])
+        new_clip = clip.fx(effect_name, **effect[1])
     else:
-        new_clip = clip.fx(getattr(vfx, effect[0]), *effect[1:])
+        new_clip = clip.fx(effect_name, *effect[1:])
 
     return new_clip
 
@@ -464,8 +467,8 @@ for videofile in video_list:
         clip_times.append({
             "start": start_time,
             "end": end_time,
-            "pre_effects": clip.get("pre_effects", []) + config.get("clip_pre_effects", []),
-            "effects": clip.get("effects", []) + config.get("clip_effects", []),
+            "pre_effects": clip.get("pre_effects", []) + videofile.get("pre_effects", []) + config.get("clip_pre_effects", []),
+            "effects": clip.get("effects", []) + videofile.get("effects", []) + config.get("clip_effects", []),
         })
 
 if config.get("clip_events", False):
@@ -509,5 +512,3 @@ if "youtube" in config:
     logging.info("Uploading to YouTube.")
     uploader = YoutubeUploader(config)
     uploader.upload(os.path.join(output_dir, output_filename))
-
-

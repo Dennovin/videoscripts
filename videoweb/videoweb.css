@@ -142,3 +142,19 @@ div.links a {
 div.links a:hover {
     color: #001f3f;
 }
+
+#video-object.zooming {
+    cursor: crosshair;
+}
+
+div#zoom-box {
+    display: none;
+}
+
+div#zoom-box.active {
+    display: block;
+    position: absolute;
+    z-index: 999;
+    border: 2px solid rgba(255, 0, 0, 0.5);
+    cursor: crosshair;
+}
