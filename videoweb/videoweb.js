@@ -1,5 +1,5 @@
 var videoweb = function() {
-    var player, origWidth, origHeight;
+    var player;
     var currentvideo = null, currentclip = {};
     var storage = window.localStorage;
     var videofiles = [];
@@ -25,8 +25,6 @@ var videoweb = function() {
 
         // Set up and resize player
         player = videojs("video-object");
-        origWidth = $("#video-object").width();
-        origHeight = $("#video-object").height();
         resizePlayer();
         $(window).resize(resizePlayer);
 
@@ -150,8 +148,8 @@ var videoweb = function() {
     function resizePlayer() {
         var newWidth, newHeight;
 
-        newWidth = Math.min($(window).width() - 500, origWidth);
-        newHeight = Math.floor(newWidth * (origHeight / origWidth));
+        newWidth = Math.min($(window).width() - 500, 1920);
+        newHeight = Math.floor(newWidth * 9 / 16);
 
         $("#video-object")
             .attr("height", newHeight)
