@@ -158,3 +158,15 @@ div#zoom-box.active {
     border: 2px solid rgba(255, 0, 0, 0.5);
     cursor: crosshair;
 }
+
+div#timer-box {
+    position: absolute;
+    z-index: 999;
+    font-size: 200%;
+    width: 4em;
+    text-align: center;
+    text-shadow: -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black, 1px 1px 0 black;
+    top: 3px;
+    color: white;
+    font-weight: bold;
+}

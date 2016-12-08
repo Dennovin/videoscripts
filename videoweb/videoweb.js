@@ -1,9 +1,10 @@
-var videoweb = function() {
+//var videoweb = function() {
     var player;
     var currentvideo = null, currentclip = {};
     var storage = window.localStorage;
     var videofiles = [];
     var timerNames = ["1st", "2nd"];
+    var timerLength = 24*60;
     var zoomX, zoomY;
 
     $(document).ready(function() {
@@ -22,6 +23,7 @@ var videoweb = function() {
         $(".boxes").on("click", ".title", toggleBox);
         $("body").on("click", "#video-object.zooming video, #zoom-box", zoomClick);
         $("body").on("mousemove", "#video-object.zooming, #zoom-box", zoomMove);
+        window.setInterval(setTimer, 500);
 
         // Set up and resize player
         player = videojs("video-object");
@@ -61,6 +63,77 @@ var videoweb = function() {
 
         return str;
     }
+
+    function getAbsoluteTime(time, videoIdx) {
+        time = time || player.currentTime();
+        if(!videoIdx) {
+            for(i in videofiles) {
+                if(videofiles[i].filename == currentvideo.filename) {
+                    videoIdx = i;
+                }
+            }
+        }
+
+        for(var i = 0; i < videoIdx; i++) {
+            time += videofiles[i].duration;
+        }
+
+        return time;
+    }
+
+    function currentGameTime() {
+        var clipStart = 0;
+        var lastTimerStart = 0;
+        var timerPausedFor = 0;
+        var pauseStarted = 0;
+
+        var now = getAbsoluteTime();
+        for(i in videofiles) {
+            videofiles[i].timer_events.sort(function(a, b) { return a.time - b.time; });
+            for(j in videofiles[i].timer_events) {
+                var evt = videofiles[i].timer_events[j];
+                var evtTime = getAbsoluteTime(evt.time, i);
+
+                if(evtTime > now) {
+                    break;
+                }
+
+                if(evt.event == "start" && evtTime > lastTimerStart) {
+                    lastTimerStart = evtTime;
+                    timerPausedFor = 0;
+                }
+                if(evt.event == "pause") {
+                    pauseStarted = evtTime;
+                }
+                if(evt.event == "unpause") {
+                    timerPausedFor += evtTime - pauseStarted;
+                    pauseStarted = 0;
+                }
+            }
+
+            if(videofiles[i].filename == currentvideo.filename) {
+                break;
+            }
+        }
+
+        if(lastTimerStart == 0) {
+            return 0;
+        }
+
+        var timeLeft = timerLength - (now - lastTimerStart) + timerPausedFor;
+        if(pauseStarted > 0) {
+            timeLeft += now - pauseStarted;
+        }
+
+        return Math.max(timeLeft, 0);
+    }
+
+function setTimer() {
+    var timeLeft = currentGameTime();
+    $("#timer-box")
+        .html(formatTime(timeLeft).substr(0, 5))
+        .css({"left": $("video").width() - $("#timer-box").width()});
+}
 
     function formatLoc(x, y) {
         return "(" + Math.floor(x) + ", " + Math.floor(y) + ")";
@@ -658,4 +731,4 @@ var videoweb = function() {
         $("input").keydown(function(e) { e.stopPropagation(); });
         $("html").keydown(readKey);
     }
-}();
+//}();
