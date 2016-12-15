@@ -1,4 +1,4 @@
-//var videoweb = function() {
+var videoweb = function() {
     var player;
     var currentvideo = null, currentclip = {};
     var storage = window.localStorage;
@@ -6,9 +6,12 @@
     var timerNames = ["1st", "2nd"];
     var timerLength = 24*60;
     var zoomX, zoomY;
+    var colorList = ["#222", "#999", "#ddd", "#900", "#d50", "#dd0", "#090", "#040", "#5dd", "#009", "#004", "#90d", "#d49"];
 
     $(document).ready(function() {
         // Bind events
+        $(".game-info").on("click", ".color", openColorSelector);
+        $(".row").on("click", ".color-selection", selectColor);
         $(".files-loaded").on("click", ".row", selectVideoFile);
         $(".timer-events").on("click", ".selectable.row.goal", selectGoal);
         $(".timer-events").on("click", ".selectable.row.goal .delete", deleteGoal);
@@ -21,6 +24,7 @@
         $(".editbox.clip").on("change", "input, select", editClip);
         $(".box.game-info").on("change", "input, select", updateData);
         $(".boxes").on("click", ".title", toggleBox);
+        $("body").on("click", "body", removePopups);
         $("body").on("click", "#video-object.zooming video, #zoom-box", zoomClick);
         $("body").on("mousemove", "#video-object.zooming, #zoom-box", zoomMove);
         window.setInterval(setTimer, 500);
@@ -49,6 +53,10 @@
         $(this).closest(".box").toggleClass("collapsed");
         e.preventDefault();
         e.stopPropagation();
+    }
+
+    function removePopups(e) {
+        $(".color-selector").remove();
     }
 
     function formatTime(seconds) {
@@ -339,6 +347,42 @@ function setTimer() {
         $(".video-clips .inputs").empty();
         updateClipList();
     }
+
+    function openColorSelector() {
+        var $this = $(this);
+        var $row = $this.closest(".row");
+        var $selector = $row.find(".color-selector");
+        if($selector.length == 0) {
+            $selector = $("<div/>").addClass("color-selector");
+
+            for(i in colorList) {
+                $("<div/>").addClass("color-selection")
+                    .attr("background", colorList[i])
+                    .css("background", colorList[i])
+                    .appendTo($selector)
+            }
+
+            $selector.appendTo($row);
+        }
+
+        $selector.css("top", $this.position().top + $this.height() + 8);
+        $selector.find(".color-selection.selected").removeClass("selected");
+        if($this.val()) {
+            $selector.find(".color-selection[background=" + $this.val() + "]").addClass("selected");
+        }
+    }
+
+    function selectColor(e) {
+        var $this = $(this);
+        var $row = $this.closest(".row");
+        var $selector = $this.closest(".color-selector");
+
+        e.stopPropagation();
+
+        $row.find("input.color").val($this.attr("background"));
+        $selector.remove();
+    }
+
 
     function selectVideoFile() {
         var $this = $(this);
@@ -731,4 +775,4 @@ function setTimer() {
         $("input").keydown(function(e) { e.stopPropagation(); });
         $("html").keydown(readKey);
     }
-//}();
+}();
