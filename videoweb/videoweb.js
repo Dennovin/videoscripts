@@ -1,3 +1,8 @@
+jQuery.Color.fn.contrastColor = function() {
+    var r = this._rgba[0], g = this._rgba[1], b = this._rgba[2];
+    return (((r*299)+(g*587)+(b*144))/1000) >= 131.5 ? "black" : "white";
+};
+
 var videoweb = function() {
     var player;
     var currentvideo = null, currentclip = {};
@@ -6,7 +11,7 @@ var videoweb = function() {
     var timerNames = ["1st", "2nd"];
     var timerLength = 24*60;
     var zoomX, zoomY;
-    var colorList = ["#222", "#999", "#ddd", "#900", "#d50", "#dd0", "#090", "#040", "#5dd", "#009", "#004", "#90d", "#d49"];
+    var colorList = ["#222", "#999", "#ddd", "#900", "#d50", "#dd0", "#090", "#040", "#5dd", "#00d", "#009", "#90d", "#d49"];
 
     $(document).ready(function() {
         // Bind events
@@ -24,7 +29,7 @@ var videoweb = function() {
         $(".editbox.clip").on("change", "input, select", editClip);
         $(".box.game-info").on("change", "input, select", updateData);
         $(".boxes").on("click", ".title", toggleBox);
-        $("body").on("click", "body", removePopups);
+        $("body").click(removePopups);
         $("body").on("click", "#video-object.zooming video, #zoom-box", zoomClick);
         $("body").on("mousemove", "#video-object.zooming, #zoom-box", zoomMove);
         window.setInterval(setTimer, 500);
@@ -40,6 +45,7 @@ var videoweb = function() {
         // Set up color boxes
         $("input.color").change(function(e) {
             $(this).css("background-color", $(this).val());
+            setTextColor($(this));
         });
 
         // Set up datepickers
@@ -348,10 +354,12 @@ function setTimer() {
         updateClipList();
     }
 
-    function openColorSelector() {
+    function openColorSelector(e) {
+        e.stopPropagation();
+
         var $this = $(this);
         var $row = $this.closest(".row");
-        var $selector = $row.find(".color-selector");
+        var $selector = $(".color-selector").detach();
         if($selector.length == 0) {
             $selector = $("<div/>").addClass("color-selector");
 
@@ -361,8 +369,6 @@ function setTimer() {
                     .css("background", colorList[i])
                     .appendTo($selector)
             }
-
-            $selector.appendTo($row);
         }
 
         $selector.css("top", $this.position().top + $this.height() + 8);
@@ -370,19 +376,28 @@ function setTimer() {
         if($this.val()) {
             $selector.find(".color-selection[background=" + $this.val() + "]").addClass("selected");
         }
+
+        $selector.appendTo($row);
     }
 
     function selectColor(e) {
         var $this = $(this);
         var $row = $this.closest(".row");
         var $selector = $this.closest(".color-selector");
+        var $input = $row.find("input.color");
 
         e.stopPropagation();
 
-        $row.find("input.color").val($this.attr("background"));
+        var color = $this.attr("background");
+        $input.val(color).css({"background": color});
+        setTextColor($input);
         $selector.remove();
     }
 
+    function setTextColor(input) {
+        var textColor = $.Color(input.css("background-color")).contrastColor();
+        input.css("color", textColor);
+    }
 
     function selectVideoFile() {
         var $this = $(this);
