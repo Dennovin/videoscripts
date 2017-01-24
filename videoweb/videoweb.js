@@ -684,10 +684,10 @@ var videoweb = function() {
             var x1 = $zoomBox.offset().left - $videoObj.offset().left, y1 = $zoomBox.offset().top - $videoObj.offset().top;
             var x2 = x1 + $zoomBox.width(), y2 = y1 + $zoomBox.height();
 
-            x1 = Math.floor(x1 / $videoObj.width() * player.videoWidth());
-            x2 = Math.floor(x2 / $videoObj.width() * player.videoWidth());
-            y1 = Math.floor(y1 / $videoObj.height() * player.videoHeight());
-            y2 = Math.floor(y2 / $videoObj.height() * player.videoHeight());
+            x1 = Math.floor(x1 / $videoObj.width() * player.videoWidth() / 16) * 16;
+            x2 = Math.floor(x2 / $videoObj.width() * player.videoWidth() / 16) * 16;
+            y1 = Math.floor(y1 / $videoObj.height() * player.videoHeight() / 9) * 9;
+            y2 = Math.floor(y2 / $videoObj.height() * player.videoHeight() / 9) * 9;
 
             currentclip.zoom = {"x1": x1, "x2": x2, "y1": y1, "y2": y2};
             updateCurrentClip();
