@@ -178,14 +178,36 @@ div#zoom-box.active {
     cursor: crosshair;
 }
 
-div#timer-box {
+div#scoreboard-container {
     position: absolute;
     z-index: 999;
-    font-size: 200%;
-    width: 4em;
-    text-align: center;
+    font-size: 150%;
     text-shadow: -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black, 1px 1px 0 black;
-    top: 3px;
+    top: 15px;
     color: white;
     font-weight: bold;
+}
+
+div#scoreboard-container div {
+    display: inline-block;
+    border: 1px solid #777;
+    margin: 0 3px;
+}
+
+div#timer-box {
+    width: 4em;
+    text-align: center;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+div#away-score-box {
+    width: 2em;
+    text-align: right;
+    padding: 0 3px;
+}
+
+div#home-score-box {
+    width: 2em;
+    text-align: right;
+    padding: 0 3px;
 }

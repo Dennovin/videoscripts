@@ -142,12 +142,34 @@ var videoweb = function() {
         return Math.max(timeLeft, 0);
     }
 
-function setTimer() {
-    var timeLeft = currentGameTime();
-    $("#timer-box")
-        .html(formatTime(timeLeft).substr(0, 5))
-        .css({"left": $("video").width() - $("#timer-box").width()});
-}
+    function currentScore() {
+        var scores = {};
+        var now = getAbsoluteTime();
+        for(i in videofiles) {
+            videofiles[i].goals.sort(function(a, b) { return a.time - b.time; });
+            for(j in videofiles[i].goals) {
+                var evt = videofiles[i].goals[j];
+                var evtTime = getAbsoluteTime(evt.time, i);
+                var team = evt.team.toLowerCase();
+                if(evtTime > now) {
+                    break;
+                }
+
+               scores[team] = (scores[team] || 0) + 1;
+            }
+        }
+
+        return scores;
+    }
+
+    function setTimer() {
+        var timeLeft = currentGameTime();
+        var score = currentScore();
+        $("#timer-box").html(formatTime(timeLeft).substr(0, 5));
+        $("#away-score-box").html(score["away"] || 0);
+        $("#home-score-box").html(score["home"] || 0);
+        $("#scoreboard-container").css({"left": $("video").width() - $("#scoreboard-container").width()});
+    }
 
     function formatLoc(x, y) {
         return "(" + Math.floor(x) + ", " + Math.floor(y) + ")";
@@ -392,6 +414,11 @@ function setTimer() {
         $input.val(color).css({"background": color});
         setTextColor($input);
         $selector.remove();
+
+        var $scoreBox = $input.attr("name") == "away-team-color" ? $("#away-score-box") : $("#home-score-box");
+        var rgbcolor = $input.css("background-color");
+        var rgba = "rgba(" + rgbcolor.substring(4, rgbcolor.length - 1) + ", 0.5)";
+        $scoreBox.css("background-color", rgba);
     }
 
     function setTextColor(input) {
