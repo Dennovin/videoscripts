@@ -485,8 +485,18 @@ if config.get("clip_events", False):
     for sample_time in sorted(sample_times):
         clip_times.append({"start": max(sample_time - 5, 0), "end": sample_time + 5, "effects": config.get("clip_effects", [])})
 
+output_filename = config["output_file"].format(
+    game_date=config["game_date"],
+    away_team=re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["away_team"]["name"]))) if "away_team" in config else "",
+    home_team=re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["home_team"]["name"]))) if "home_team" in config else "",
+)
+output_filename = os.path.join(output_dir, output_filename)
+
 for clip_time in clip_times:
-    filename = os.path.join(output_dir, "clip.{}.mp4".format(format_time(clip_time["start"], "{m:02d}.{s:02.0f}")))
+    if len(clip_times) == 1:
+        filename = output_filename
+    else:
+        filename = os.path.join(output_dir, "clip.{}.mp4".format(format_time(clip_time["start"], "{m:02d}.{s:02.0f}")))
 
     subclip = video_clip
     for effect in clip_time["pre_effects"]:
@@ -504,16 +514,9 @@ for clip_time in clip_times:
         subclip.write_videofile(filename, fps=30, threads=write_threads)
     all_clips.append(subclip)
 
-output_filename = config["output_file"].format(
-    game_date=config["game_date"],
-    away_team=re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["away_team"]["name"]))) if "away_team" in config else "",
-    home_team=re.sub("[^A-Za-z0-9 ]", "", unidecode(unicode(config["home_team"]["name"]))) if "home_team" in config else "",
-)
-output_filename = os.path.join(output_dir, output_filename)
-
 if "write_full" in config:
     video_clip.write_videofile(output_filename, fps=30, threads=write_threads)
-elif "clips_only" not in config:
+elif "clips_only" not in config and len(clip_times) > 1:
     clipped_video = concatenate_videoclips(all_clips)
     if not os.path.isfile(output_filename):
         clipped_video.write_videofile(output_filename, fps=30, threads=write_threads)
