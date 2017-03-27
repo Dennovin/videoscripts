@@ -319,6 +319,7 @@ if "home_team" in config and "away_team" in config:
 
     # Organize list of timers/labels
     timers = config.get("timers", [])
+    timer_ends = set()
 
     for timer in timers:
         if not "length" in timer:
@@ -343,14 +344,23 @@ if "home_team" in config and "away_team" in config:
                     elif timer_event["event"] == "unpause":
                         timer["unpauses"].append(parse_time(timer_event["time"]) + videofile["start_time"])
 
-        total_length = parse_time(timer["length"])
+        total_pause_time = 0
         for pause in zip(sorted(timer.get("pauses", []), key=lambda x: x["start"]), sorted(timer.get("unpauses", []))):
             pause[0]["start"] = pause[0]["start"] - timer["start"]
             pause[0]["end"] = pause[1] - timer["start"]
-            total_length += pause[0]["end"] - pause[0]["start"]
+            total_pause_time += pause[0]["end"] - pause[0]["start"]
 
+        total_length = parse_time(timer["length"]) + total_pause_time
+
+        # If timer overlaps a previous timer, it shouldn't start until the start time defined in the file
+        # Otherwise calculate start time
         if "end" in timer:
-            timer["start"] = timer["end"] - total_length
+            if filter(lambda x: x > timer["end"] - total_length, timer_ends):
+                timer["length"] = format_time(parse_time(timer["length"]) - (timer["start"] - (timer["end"] - total_length)))
+            else:
+                timer["start"] = timer["end"] - total_length
+
+        timer_ends.add(timer["start"] + total_length)
 
     timer_starts = [t["start"] for t in timers if "start" in t]
     timer_starts.append(video_clip.duration)
