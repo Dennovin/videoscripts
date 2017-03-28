@@ -510,9 +510,12 @@ for clip_time in clip_times:
     for effect in clip_time["effects"]:
         subclip = apply_effect(subclip, effect)
 
-    if not os.path.isfile(filename):
+    if os.path.isfile(filename):
+        logging.info("{} already exists, loading from file".format(filename))
+    else:
         subclip.write_videofile(filename, fps=30, threads=write_threads)
-    all_clips.append(subclip)
+
+    all_clips.append(VideoFileClip(filename))
 
 if "write_full" in config:
     video_clip.write_videofile(output_filename, fps=30, threads=write_threads)
