@@ -687,7 +687,7 @@ var videoweb = function() {
             x1 = Math.floor(x1 / $videoObj.width() * player.videoWidth() / 16) * 16;
             x2 = Math.floor(x2 / $videoObj.width() * player.videoWidth() / 16) * 16;
             y1 = Math.floor(y1 / $videoObj.height() * player.videoHeight() / 9) * 9;
-            y2 = Math.floor(y2 / $videoObj.height() * player.videoHeight() / 9) * 9;
+            y2 = y1 + (x2 - x1) * (9/16);
 
             currentclip.zoom = {"x1": x1, "x2": x2, "y1": y1, "y2": y2};
             updateCurrentClip();
