@@ -174,7 +174,8 @@ scale = 1.0 / float(ssamp)
 sample_times = set()
 
 output_size = config.get("output_size", (1920, 1080))
-write_threads = config.get("write_threads", 1)
+
+write_videofile_opts = config.get("write_options", [])
 
 # Find directory where timer clips are stored
 timer_clips_dir = os.path.abspath(os.path.join(output_dir, "timer_clips"))
@@ -513,16 +514,16 @@ for clip_time in clip_times:
     if os.path.isfile(filename):
         logging.info("{} already exists, loading from file".format(filename))
     else:
-        subclip.write_videofile(filename, fps=30, threads=write_threads)
+        subclip.write_videofile(filename, fps=30, **write_videofile_opts)
 
     all_clips.append(VideoFileClip(filename))
 
 if "write_full" in config:
-    video_clip.write_videofile(output_filename, fps=30, threads=write_threads)
+    video_clip.write_videofile(output_filename, fps=30, **write_videofile_opts)
 elif "clips_only" not in config and len(clip_times) > 1:
     clipped_video = concatenate_videoclips(all_clips)
     if not os.path.isfile(output_filename):
-        clipped_video.write_videofile(output_filename, fps=30, threads=write_threads)
+        clipped_video.write_videofile(output_filename, fps=30, **write_videofile_opts)
 
 if "youtube" in config:
     logging.info("Uploading to YouTube.")
