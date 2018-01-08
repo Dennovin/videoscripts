@@ -12,6 +12,7 @@ var videoweb = function() {
     var timerLength = 24*60;
     var zoomX, zoomY;
     var colorList = ["#222", "#999", "#ddd", "#900", "#d50", "#dd0", "#090", "#040", "#5dd", "#00d", "#009", "#90d", "#d49"];
+    var flipped = false;
 
     $(document).ready(function() {
         // Bind events
@@ -220,6 +221,10 @@ var videoweb = function() {
             ' - game.yaml\n' +
             ' - youtube.yaml\n' +
             '\n';
+
+        if(flipped) {
+            data += 'flip: true\n';
+        }
 
         data += "files:\n";
         for(i in videofiles) {
@@ -774,6 +779,10 @@ var videoweb = function() {
             addGoal(player.currentTime());
             break;
 
+        case 82:  // R
+            player.zoomrotate({"rotate": 180});
+            flipped = !flipped;
+
         case 84:  // T
             addTimerEvent(player.currentTime());
             break;
@@ -788,6 +797,22 @@ var videoweb = function() {
 
         case 188: // <
             player.playbackRate(player.playbackRate() / 1.5);
+            break;
+
+        case 219: // [
+            if(currentclip && currentclip.start) {
+                currentclip.start -= 1;
+                $("#clip-start").val(formatTime(currentclip.start));
+            }
+
+            break;
+
+        case 221: // ]
+            if(currentclip && currentclip.start) {
+                currentclip.start += 1;
+                $("#clip-start").val(formatTime(currentclip.start));
+            }
+
             break;
 
         case 191:  // /
