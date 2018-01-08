@@ -760,9 +760,24 @@ jQuery.Color.fn.contrastColor = function() {
         $(".video-object").toggleClass("zooming");
     }
 
-    function changeCamera(e) {
-        e.stopPropagation();
-        e.preventDefault();
+    function changeCamera() {
+        var current = $(".files-loaded").find(".selected").first();
+        var activeContainer = current.closest(".files-loaded");
+        var inactiveContainer = $(".files-loaded").not(activeContainer);
+        var idx = activeContainer.find(".selectable").index(current);
+
+        current.removeClass("selected");
+        $(inactiveContainer.find(".selectable").get(idx)).addClass("selected");
+
+        var time = player.currentTime();
+        var paused = player.paused();
+        var selected = $(".files-loaded").find(".selected").first();
+        $("video").attr("src", selected.attr("videourl"));
+        player.currentTime(time);
+
+        if(!paused) {
+            player.play();
+        }
     }
 
     function readKey(e) {
