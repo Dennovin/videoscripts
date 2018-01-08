@@ -5,6 +5,7 @@
     <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
     <script src="//code.jquery.com/color/jquery.color-2.1.2.min.js"></script>
     <script src="//vjs.zencdn.net/5.10.7/video.js"></script>
+    <script src="videojs.zoomrotate.js"></script>
     <script src="videoweb.js"></script>
 
     <link href="//fonts.googleapis.com/css?family=PT+Sans:400,700,400italic,700italic" rel="stylesheet" type="text/css" />
@@ -16,7 +17,7 @@
   </head>
 
   <body>
-    <video id="video-object" class="video-js vjs-default-skin" controls="true" preload="auto" width="1280" height="720"></video>
+    <video id="video-object" class="video-object video-js vjs-default-skin" controls="true" preload="auto" width="1280" height="720"></video>
     <div id="scoreboard-container">
       <div id="timer-box"></div>
       <div id="away-score-box"></div>
@@ -89,8 +90,17 @@
         </div>
       </div>
 
-      <div class="box files-loaded">
-        <div class="title">Files Loaded</div>
+      <div class="box files-loaded camera1">
+        <div class="title">Camera 1</div>
+
+        <div class="box-body">
+          <div class="inputs">
+          </div>
+        </div>
+      </div>
+
+      <div class="box files-loaded camera2">
+        <div class="title">Camera 2</div>
 
         <div class="box-body">
           <div class="inputs">

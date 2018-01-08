@@ -3,7 +3,7 @@ jQuery.Color.fn.contrastColor = function() {
     return (((r*299)+(g*587)+(b*144))/1000) >= 131.5 ? "black" : "white";
 };
 
-var videoweb = function() {
+//var videoweb = function() {
     var player;
     var currentvideo = null, currentclip = {};
     var storage = window.localStorage;
@@ -31,8 +31,8 @@ var videoweb = function() {
         $(".box.game-info").on("change", "input, select", updateData);
         $(".boxes").on("click", ".title", toggleBox);
         $("body").click(removePopups);
-        $("body").on("click", "#video-object.zooming video, #zoom-box", zoomClick);
-        $("body").on("mousemove", "#video-object.zooming, #zoom-box", zoomMove);
+        $("body").on("click", ".video-object.zooming video, #zoom-box", zoomClick);
+        $("body").on("mousemove", ".video-object.zooming, #zoom-box", zoomMove);
         window.setInterval(setTimer, 500);
 
         // Set up and resize player
@@ -265,7 +265,7 @@ var videoweb = function() {
         newWidth = Math.min($(window).width() - 500, 1920);
         newHeight = Math.floor(newWidth * 9 / 16);
 
-        $("#video-object")
+        $(".video-object")
             .attr("height", newHeight)
             .attr("width", newWidth)
             .css({"height": newHeight, "width": newWidth});
@@ -300,10 +300,19 @@ var videoweb = function() {
     }
 
     function updateVideoFiles() {
-        var container = $(".files-loaded .inputs").not(".editbox .inputs");
-        container.empty();
+        $(".files-loaded .inputs").not(".editbox .inputs").empty();
+
+        var container1 = $(".files-loaded.camera1 .inputs").not(".editbox .inputs");
+        var container2 = $(".files-loaded.camera2 .inputs").not(".editbox .inputs");
+
         $.each(videofiles, function(i, videofile) {
-            $("<div/>").addClass("row selectable").text(videofile.filename).attr("videourl", videofile.url).appendTo(container);
+            var row = $("<div/>").addClass("row selectable").text(videofile.filename).attr("videourl", videofile.url);
+
+            if($(container1).find(".selectable").length == 0 || ($(container1).find(".selectable").first().text().substr(5, 4) == videofile.filename.substr(5, 4))) {
+                row.appendTo(container1);
+            } else {
+                row.appendTo(container2);
+            }
         });
 
         if(currentvideo) {
@@ -433,7 +442,10 @@ var videoweb = function() {
 
     function selectVideoFile() {
         var $this = $(this);
-        $this.closest(".inputs").find(".selectable").removeClass("selected");
+
+        $("video").attr("src", $this.attr("videourl"));
+
+        $(".files-loaded .inputs").find(".selectable").removeClass("selected");
         $this.addClass("selected");
 
         $.each(videofiles, function(i, videofile) {
@@ -442,7 +454,6 @@ var videoweb = function() {
             }
         });
 
-        $("video").attr("src", $this.attr("videourl"));
         forceUpdateGameEvents();
         forceUpdateClipList();
     }
@@ -685,7 +696,7 @@ var videoweb = function() {
         e.preventDefault();
 
         if($("#zoom-box").hasClass("active")) {
-            var $videoObj = $("#video-object"), $zoomBox = $("#zoom-box");
+            var $videoObj = $(".video-object"), $zoomBox = $("#zoom-box");
             var x1 = $zoomBox.offset().left - $videoObj.offset().left, y1 = $zoomBox.offset().top - $videoObj.offset().top;
             var x2 = x1 + $zoomBox.width(), y2 = y1 + $zoomBox.height();
 
@@ -697,7 +708,7 @@ var videoweb = function() {
             currentclip.zoom = {"x1": x1, "x2": x2, "y1": y1, "y2": y2};
             updateCurrentClip();
 
-            $("#video-object").removeClass("zooming");
+            $(".video-object").removeClass("zooming");
         } else {
             zoomX = e.pageX;
             zoomY = e.pageY;
@@ -715,7 +726,7 @@ var videoweb = function() {
 
     function zoomMove(e) {
         if($("#zoom-box").hasClass("active")) {
-            var $videoObj = $("#video-object");
+            var $videoObj = $(".video-object");
             var vminX = $videoObj.offset().left, vminY = $videoObj.offset().top;
             var vmaxX = vminX + $videoObj.width(), vmaxY = vminY + $videoObj.height();
             var evtX = Math.min(vmaxX, Math.max(vminX, e.pageX));
@@ -746,7 +757,12 @@ var videoweb = function() {
         e.stopPropagation();
         e.preventDefault();
 
-        $("#video-object").toggleClass("zooming");
+        $(".video-object").toggleClass("zooming");
+    }
+
+    function changeCamera(e) {
+        e.stopPropagation();
+        e.preventDefault();
     }
 
     function readKey(e) {
@@ -764,6 +780,10 @@ var videoweb = function() {
 
         case 65:  // A
             saveCurrentClip();
+            break;
+
+        case 67:  // C
+            changeCamera();
             break;
 
         case 70:  // F
@@ -842,4 +862,4 @@ var videoweb = function() {
         $("input").keydown(function(e) { e.stopPropagation(); });
         $("html").keydown(readKey);
     }
-}();
+//}();
