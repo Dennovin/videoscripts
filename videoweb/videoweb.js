@@ -7,7 +7,9 @@ jQuery.Color.fn.contrastColor = function() {
     var player;
     var currentvideo = null, currentclip = {};
     var storage = window.localStorage;
-    var videofiles = [];
+    var videofiles = {};
+    var timerEvents = [];
+    var goals = []
     var timerNames = ["1st", "2nd"];
     var timerLength = 24*60;
     var zoomX, zoomY;
@@ -81,17 +83,14 @@ jQuery.Color.fn.contrastColor = function() {
 
     function getAbsoluteTime(time, videoIdx) {
         time = time || player.currentTime();
-        if(!videoIdx) {
-            for(i in videofiles) {
-                if(videofiles[i].filename == currentvideo.filename) {
-                    videoIdx = i;
-                }
-            }
-        }
 
-        for(var i = 0; i < videoIdx; i++) {
-            time += videofiles[i].duration;
-        }
+        $.each($(".files-loaded").find(".selectable"), function(i, row) {
+            if(videoIdx == i || (videoIdx === undefined && $(row).hasClass("selected"))) {
+                return false;
+            }
+
+            time += videofiles[$(row).attr("videourl")].duration;
+        });
 
         return time;
     }
@@ -103,31 +102,25 @@ jQuery.Color.fn.contrastColor = function() {
         var pauseStarted = 0;
 
         var now = getAbsoluteTime();
-        for(i in videofiles) {
-            videofiles[i].timer_events.sort(function(a, b) { return a.time - b.time; });
-            for(j in videofiles[i].timer_events) {
-                var evt = videofiles[i].timer_events[j];
-                var evtTime = getAbsoluteTime(evt.time, i);
 
-                if(evtTime > now) {
-                    break;
-                }
+        timerEvents.sort(function(a, b) { return a.time - b.time; });
 
-                if(evt.event == "start" && evtTime > lastTimerStart) {
-                    lastTimerStart = evtTime;
-                    timerPausedFor = 0;
-                }
-                if(evt.event == "pause") {
-                    pauseStarted = evtTime;
-                }
-                if(evt.event == "unpause") {
-                    timerPausedFor += evtTime - pauseStarted;
-                    pauseStarted = 0;
-                }
+        for(i in timerEvents) {
+            var evt = timerEvents[i];
+            if(evt.time > now) {
+                break;
             }
 
-            if(videofiles[i].filename == currentvideo.filename) {
-                break;
+            if(evt.event == "start" && evt.time > lastTimerStart) {
+                lastTimerStart = evt.time;
+                timerPausedFor = 0;
+            }
+            if(evt.event == "pause") {
+                pauseStarted = evt.time;
+            }
+            if(evt.event == "unpause") {
+                timerPausedFor += evt.time - pauseStarted;
+                pauseStarted = 0;
             }
         }
 
@@ -146,18 +139,16 @@ jQuery.Color.fn.contrastColor = function() {
     function currentScore() {
         var scores = {};
         var now = getAbsoluteTime();
-        for(i in videofiles) {
-            videofiles[i].goals.sort(function(a, b) { return a.time - b.time; });
-            for(j in videofiles[i].goals) {
-                var evt = videofiles[i].goals[j];
-                var evtTime = getAbsoluteTime(evt.time, i);
-                var team = evt.team.toLowerCase();
-                if(evtTime > now) {
-                    break;
-                }
 
-               scores[team] = (scores[team] || 0) + 1;
+        goals.sort(function(a, b) { return a.time - b.time; });
+        for(i in goals) {
+            var evt = goals[i];
+            var team = evt.team.toLowerCase();
+            if(evt.time > now) {
+                break;
             }
+
+            scores[team] = (scores[team] || 0) + 1;
         }
 
         return scores;
@@ -324,12 +315,12 @@ jQuery.Color.fn.contrastColor = function() {
         var events = [];
         var container = $(".timer-events .inputs").not(".editbox .inputs");
 
-        $.each(currentvideo.timer_events, function(i, event) {
+        $.each(timerEvents, function(i, event) {
             var event = {"idx": i, "time": event.time, "type": "timer", "title": (event.event.substring(0, 1).toUpperCase() + event.event.slice(1)) + " " + event.timer};
             events.push(event);
         });
 
-        $.each(currentvideo.goals, function(i, goal) {
+        $.each(goals, function(i, goal) {
             var event = {"idx": i, "time": goal.time, "type": "goal", "title": "Goal (" + (goal.team.substring(0, 1).toUpperCase() + goal.team.slice(1)) + ")"};
             events.push(event);
         });
@@ -448,11 +439,7 @@ jQuery.Color.fn.contrastColor = function() {
         $(".files-loaded .inputs").find(".selectable").removeClass("selected");
         $this.addClass("selected");
 
-        $.each(videofiles, function(i, videofile) {
-            if(videofile.url == $this.attr("videourl")) {
-                currentvideo = videofile;
-            }
-        });
+        currentvideo = videofiles[$this.attr("videourl")];
 
         forceUpdateGameEvents();
         forceUpdateClipList();
@@ -640,8 +627,8 @@ jQuery.Color.fn.contrastColor = function() {
         var timerNameIndex = 0;
         var timerEvent = "start";
 
-        if(currentvideo.timer_events.length > 0) {
-            var lastEvent = currentvideo.timer_events[currentvideo.timer_events.length - 1];
+        if(timerEvents.length > 0) {
+            var lastEvent = timerEvents[timerEvents.length - 1];
             timerNameIndex = timerNames.indexOf(lastEvent.timer);
 
             if(timerNameIndex < timerNames.length - 1 && lastEvent.event == "end") {
@@ -654,14 +641,14 @@ jQuery.Color.fn.contrastColor = function() {
         }
 
         var event = {"timer": timerNames[timerNameIndex], "event": timerEvent, "time": eventtime};
-        currentvideo.timer_events.push(event);
+        timerEvents.push(event);
         updateGameEvents();
         updateData();
     }
 
     function addGoal(eventtime) {
         var event = {"team": "away", "time": eventtime};
-        currentvideo.goals.push(event);
+        goals.push(event);
         updateGameEvents();
         updateData();
     }
@@ -677,7 +664,7 @@ jQuery.Color.fn.contrastColor = function() {
             var videofile = file.name in storage ? JSON.parse(storage.getItem(file.name)) : {"filename": file.name, "clips": [], "goals": [], "timer_events": []};
             videofile.url = videourl;
 
-            videofiles.push(videofile);
+            videofiles[videourl] = videofile;
         });
 
         updateVideoFiles();
@@ -811,7 +798,7 @@ jQuery.Color.fn.contrastColor = function() {
             break;
 
         case 71:  // G
-            addGoal(player.currentTime());
+            addGoal(getAbsoluteTime());
             break;
 
         case 82:  // R
@@ -819,7 +806,7 @@ jQuery.Color.fn.contrastColor = function() {
             flipped = !flipped;
 
         case 84:  // T
-            addTimerEvent(player.currentTime());
+            addTimerEvent(getAbsoluteTime());
             break;
 
         case 90:  // Z
