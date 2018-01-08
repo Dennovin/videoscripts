@@ -487,14 +487,27 @@ for clip_time in clip_times:
     else:
         filename = os.path.join(output_dir, "clip.{}.mp4".format(format_time(clip_time["start"], "{m:02d}.{s:02.0f}")))
 
-    subclip = camera_clips[clip_time["camera"]]
-    for effect in clip_time["pre_effects"]:
-        subclip = apply_effect(subclip, effect)
+    camera_selections = clip_time["camera"]
+    if not isinstance(clip_time["camera"], list):
+        camera_selections = [{"time": format_time(clip_time["start"]), "camera": clip_time["camera"]}]
 
-    if text_clips:
-        subclip = CompositeVideoClip([subclip] + text_clips)
+    subclip_parts = []
+    for i, camera_selection in enumerate(camera_selections):
+        try:
+            end_time = parse_time(camera_selections[i+1]["time"])
+        except IndexError:
+            end_time = clip_time["end"]
 
-    subclip = subclip.subclip(t_start=clip_time["start"], t_end=clip_time["end"])
+        subclip_part = camera_clips[camera_selection["camera"]]
+        for effect in clip_time["pre_effects"]:
+            subclip_part = apply_effect(subclip_part, effect)
+
+        if text_clips:
+            subclip_part = CompositeVideoClip([subclip_part] + text_clips)
+
+        subclip_parts.append(subclip_part.subclip(t_start=parse_time(camera_selection["time"]), t_end=end_time))
+
+    subclip = concatenate_videoclips(subclip_parts)
 
     for effect in clip_time["effects"]:
         subclip = apply_effect(subclip, effect)
