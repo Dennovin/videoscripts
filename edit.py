@@ -188,41 +188,39 @@ while not os.path.isdir(timer_clips_dir):
         timer_clips_dir = new_dir
 logging.info("Timer clips directory is: {}".format(timer_clips_dir))
 
-# Merge video file lists, but maintain their order
-videofiles = {}
-for i, videofile in enumerate(config["files"]):
-    videofiles[videofile["name"]] = merge(videofiles.get(videofile["name"], {"order": i}), videofile)
-video_list = sorted(videofiles.values(), key=lambda x: x["order"])
+# Concatenate each camera file
+video_duration = 0
+camera_clips = {}
+for camera in config.get("cameras", []):
+    clips = []
+    for fn in camera["files"]:
+        if not os.path.isfile(fn):
+            for dirname in search_dirs:
+                if os.path.isfile(os.path.join(dirname, fn)):
+                    fn = os.path.join(dirname, fn)
+                    break
 
-logging.info("Output directory is: {}".format(output_dir))
+        logging.info("Loading clip: {}".format(os.path.abspath(fn)))
 
-# Concatenate
-input_clips = []
-for videofile in video_list:
-    if not os.path.isfile(videofile["name"]):
-        for dirname in search_dirs:
-            if os.path.isfile(os.path.join(dirname, videofile["name"])):
-                videofile["name"] = os.path.join(dirname, videofile["name"])
-                break
+        clip = VideoFileClip(fn)
+        clips.append(clip)
 
-    logging.info("Loading clip: {}".format(os.path.abspath(videofile["name"])))
+    video_clip = concatenate_videoclips(clips)
 
-    videofile["clip"] = VideoFileClip(videofile["name"])
-    videofile["start_time"] = sum(i.get("length", 0) for i in video_list)
-    videofile["length"] = videofile["clip"].duration
-    input_clips.append(videofile["clip"])
+    for effect in config.get("prefilter", []):
+        video_clip = apply_effect(video_clip, effect)
 
-video_clip = concatenate_videoclips(input_clips)
+    video_clip = video_clip.resize(output_size)
+    scale *= (video_clip.w / output_size[0])
 
-for effect in config.get("prefilter", []):
-    video_clip = apply_effect(video_clip, effect)
+    # Flip
+    if config.get("flip", False):
+        video_clip = vfx.rotate(video_clip, 180)
 
-video_clip = video_clip.resize(output_size)
-scale *= (video_clip.w / output_size[0])
-
-# Flip
-if config.get("flip", False):
-    video_clip = vfx.rotate(video_clip, 180)
+    video_height = video_clip.h
+    video_width = video_clip.w
+    video_duration = max(video_duration, video_clip.duration)
+    camera_clips[camera["name"]] = video_clip
 
 # Scoreboard
 text_clips = []
@@ -239,7 +237,7 @@ if "home_team" in config and "away_team" in config:
     timer_width = int(timer_label.w * 1.2)
     label_top = 10
 
-    away_left = int(video_clip.w / 2) - int((label_width + score_width) * scale) - int(timer_width * scale / 2)
+    away_left = int(video_width / 2) - int((label_width + score_width) * scale) - int(timer_width * scale / 2)
     away_score_left = away_left + label_width * scale
     home_left = away_score_left + score_width * scale
     home_score_left = home_left + label_width * scale
@@ -313,10 +311,10 @@ if "home_team" in config and "away_team" in config:
     img_array = numpy.array(background)
     del draw
 
-    text_clips.append(ImageClip(shadow_array).fx(vfx.resize, scale).set_pos((away_left + 2, label_top + 2)).set_start(0).set_end(video_clip.duration))
-    text_clips.append(ImageClip(img_array).fx(vfx.resize, scale).set_pos((away_left, label_top)).set_start(0).set_end(video_clip.duration))
-    text_clips.append(home_label.set_pos((home_left, label_top)).set_start(0).set_end(video_clip.duration))
-    text_clips.append(away_label.set_pos((away_left, label_top)).set_start(0).set_end(video_clip.duration))
+    text_clips.append(ImageClip(shadow_array).fx(vfx.resize, scale).set_pos((away_left + 2, label_top + 2)).set_start(0).set_end(video_duration))
+    text_clips.append(ImageClip(img_array).fx(vfx.resize, scale).set_pos((away_left, label_top)).set_start(0).set_end(video_duration))
+    text_clips.append(home_label.set_pos((home_left, label_top)).set_start(0).set_end(video_duration))
+    text_clips.append(away_label.set_pos((away_left, label_top)).set_start(0).set_end(video_duration))
 
     # Organize list of timers/labels
     timers = config.get("timers", [])
@@ -330,20 +328,16 @@ if "home_team" in config and "away_team" in config:
         timer["pauses"] = []
         timer["unpauses"] = []
 
-        for videofile in video_list:
-            if videofile.get("timer_events", None) is None:
-                continue
-
-            for timer_event in videofile.get("timer_events", []):
-                if timer_event.get("timer", None) == timer["name"]:
-                    if timer_event["event"] == "start":
-                        timer["start"] = parse_time(timer_event["time"]) + videofile["start_time"]
-                    elif timer_event["event"] == "end":
-                        timer["end"] = parse_time(timer_event["time"]) + videofile["start_time"]
-                    elif timer_event["event"] == "pause":
-                        timer["pauses"].append({"start": parse_time(timer_event["time"]) + videofile["start_time"]})
-                    elif timer_event["event"] == "unpause":
-                        timer["unpauses"].append(parse_time(timer_event["time"]) + videofile["start_time"])
+        for timer_event in config.get("timer_events", []):
+            if timer_event.get("timer", None) == timer["name"]:
+                if timer_event["event"] == "start":
+                    timer["start"] = parse_time(timer_event["time"])
+                elif timer_event["event"] == "end":
+                    timer["end"] = parse_time(timer_event["time"])
+                elif timer_event["event"] == "pause":
+                    timer["pauses"].append({"start": parse_time(timer_event["time"])})
+                elif timer_event["event"] == "unpause":
+                    timer["unpauses"].append(parse_time(timer_event["time"]))
 
         total_pause_time = 0
         for pause in zip(sorted(timer.get("pauses", []), key=lambda x: x["start"]), sorted(timer.get("unpauses", []))):
@@ -364,7 +358,7 @@ if "home_team" in config and "away_team" in config:
         timer_ends.add(timer["start"] + total_length)
 
     timer_starts = [t["start"] for t in timers if "start" in t]
-    timer_starts.append(video_clip.duration)
+    timer_starts.append(video_duration)
 
     # Generate actual timers first
     for i, timer in enumerate(timers):
@@ -402,7 +396,7 @@ if "home_team" in config and "away_team" in config:
         try:
             timer["end"] = timers[i+1].start
         except IndexError:
-            timer["end"] = video_clip.duration
+            timer["end"] = video_duration
 
         logging.info("  Label {} starts at {} and ends at {}".format(timer["name"], format_time(timer["start"]), format_time(timer["end"])))
 
@@ -418,21 +412,17 @@ if "home_team" in config and "away_team" in config:
     home_goals = []
     away_goals = []
 
-    for videofile in video_list:
-        if videofile.get("goals", None) is None:
-            continue
-
-        for goal in videofile.get("goals", []):
-            if goal["team"] == "home":
-                home_goals.append(parse_time(goal["time"]) + videofile["start_time"])
-            else:
-                away_goals.append(parse_time(goal["time"]) + videofile["start_time"])
+    for goal in config.get("goals", []):
+        if goal["team"] == "home":
+            home_goals.append(parse_time(goal["time"]))
+        else:
+            away_goals.append(parse_time(goal["time"]))
 
     config["home_score"] = len(home_goals)
     config["away_score"] = len(away_goals)
 
     # Generate score labels
-    for score, times in enumerate(zip([0] + sorted(home_goals), sorted(home_goals) + [video_clip.duration])):
+    for score, times in enumerate(zip([0] + sorted(home_goals), sorted(home_goals) + [video_duration])):
         text_clip = TextClip(txt=str(score), font=config["team_score_font"], fontsize=config["team_score_font_size"]*ssamp,
                              size=(score_width, label_height), method="caption", align="Center",
                              color="rgba(255, 255, 255, 204)", stroke_color="rgba(0, 0, 0, 204)", stroke_width=0.5*ssamp) \
@@ -442,7 +432,7 @@ if "home_team" in config and "away_team" in config:
 
         logging.info("Home team score is {} between {} and {}".format(score, format_time(times[0]), format_time(times[1])))
 
-    for score, times in enumerate(zip([0] + sorted(away_goals), sorted(away_goals) + [video_clip.duration])):
+    for score, times in enumerate(zip([0] + sorted(away_goals), sorted(away_goals) + [video_duration])):
         text_clip = TextClip(txt=str(score), font=config["team_score_font"], fontsize=config["team_score_font_size"]*ssamp,
                              size=(score_width, label_height), method="caption", align="Center",
                              color="white", stroke_color="black", stroke_width=0.5*ssamp) \
@@ -452,11 +442,11 @@ if "home_team" in config and "away_team" in config:
 
         logging.info("Away team score is {} between {} and {}".format(score, format_time(times[0]), format_time(times[1])))
 
-composite_clip = video_clip
-if text_clips:
-    composite_clip = CompositeVideoClip([video_clip] + text_clips)
-
 # Generate sample images
+composite_clip = camera_clips[config["cameras"][0]["name"]]
+if text_clips:
+    composite_clip = CompositeVideoClip([composite_clip] + text_clips)
+
 for sample_time in sorted(sample_times):
     image_fn = os.path.join(output_dir, "sample.{}.png".format(format_time(sample_time, "{m:02d}.{s:05.2f}")))
     if not os.path.isfile(image_fn):
@@ -468,19 +458,17 @@ logging.info("Generating video clips.")
 
 clip_times = []
 all_clips = []
-for videofile in video_list:
-    if videofile.get("clips", None) is None:
-        continue
 
-    for clip in videofile.get("clips", []):
-        start_time = parse_time(clip["start"]) + videofile["start_time"]
-        end_time = parse_time(clip["end"]) + videofile["start_time"]
-        clip_times.append({
-            "start": start_time,
-            "end": end_time,
-            "pre_effects": clip.get("pre_effects", []) + videofile.get("pre_effects", []) + config.get("clip_pre_effects", []),
-            "effects": clip.get("effects", []) + videofile.get("effects", []) + config.get("clip_effects", []),
-        })
+for clip in config.get("clips", []):
+    start_time = parse_time(clip["start"])
+    end_time = parse_time(clip["end"])
+    clip_times.append({
+        "start": start_time,
+        "end": end_time,
+        "camera": clip.get("camera", config["cameras"][0]["name"]),
+        "pre_effects": clip.get("pre_effects", []) + config.get("clip_pre_effects", []),
+        "effects": clip.get("effects", []) + config.get("clip_effects", []),
+    })
 
 if config.get("clip_events", False):
     for sample_time in sorted(sample_times):
@@ -499,7 +487,7 @@ for clip_time in clip_times:
     else:
         filename = os.path.join(output_dir, "clip.{}.mp4".format(format_time(clip_time["start"], "{m:02d}.{s:02.0f}")))
 
-    subclip = video_clip
+    subclip = camera_clips[clip_time["camera"]]
     for effect in clip_time["pre_effects"]:
         subclip = apply_effect(subclip, effect)
 
