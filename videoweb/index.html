@@ -17,7 +17,8 @@
   </head>
 
   <body>
-    <video id="video-object" class="video-object video-js vjs-default-skin" controls="true" preload="auto" width="1280" height="720"></video>
+    <video id="video-object-1" class="video-object video-js vjs-default-skin video-object-active" controls="true" preload="auto" width="1280" height="720"></video>
+    <video id="video-object-2" class="video-object video-js vjs-default-skin" controls="true" preload="auto" width="1280" height="720"></video>
     <div id="scoreboard-container">
       <div id="timer-box"></div>
       <div id="away-score-box"></div>
@@ -36,7 +37,8 @@
 
         <div class="box-body">
           <div class="labels">
-            <label for="clip-file">Starts in File:</label>
+            <label for="clip-camera">Starting Camera:</label>
+            <label for="clip-camera-swaps">Camera Swaps:</label>
             <label for="clip-start">Start Time:</label>
             <label for="clip-end">End Time:</label>
             <label for="clip-zoom">Zoom:</label>
@@ -44,7 +46,11 @@
 
           <div class="inputs">
             <div class="row">
-              <input type="text" name="clip-file" id="clip-file" />
+              <input type="text" name="clip-camera" id="clip-camera" />
+            </div>
+
+            <div class="row">
+              <input type="text" name="clip-camera-swaps" id="clip-camera-swaps" />
             </div>
 
             <div class="row">

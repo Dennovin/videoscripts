@@ -3,13 +3,14 @@ jQuery.Color.fn.contrastColor = function() {
     return (((r*299)+(g*587)+(b*144))/1000) >= 131.5 ? "black" : "white";
 };
 
-//var videoweb = function() {
-    var player;
-    var currentvideo = null, currentclip = {};
+var videoweb = function() {
+    var player, allPlayers;
+    var currentvideo = null, currentclip = {"cameraswaps": []};
     var storage = window.localStorage;
     var videofiles = {};
     var timerEvents = [];
-    var goals = []
+    var goals = [];
+    var clips = [];
     var timerNames = ["1st", "2nd"];
     var timerLength = 24*60;
     var zoomX, zoomY;
@@ -38,7 +39,12 @@ jQuery.Color.fn.contrastColor = function() {
         window.setInterval(setTimer, 500);
 
         // Set up and resize player
-        player = videojs("video-object");
+        allPlayers = [
+            videojs("video-object-1"),
+            videojs("video-object-2")
+        ];
+
+        player = allPlayers[0];
         resizePlayer();
         $(window).resize(resizePlayer);
 
@@ -160,7 +166,7 @@ jQuery.Color.fn.contrastColor = function() {
         $("#timer-box").html(formatTime(timeLeft).substr(0, 5));
         $("#away-score-box").html(score["away"] || 0);
         $("#home-score-box").html(score["home"] || 0);
-        $("#scoreboard-container").css({"left": $("video").width() - $("#scoreboard-container").width()});
+        $("#scoreboard-container").css({"left": $(".video-object-active").width() - $("#scoreboard-container").width()});
     }
 
     function formatLoc(x, y) {
@@ -185,22 +191,19 @@ jQuery.Color.fn.contrastColor = function() {
             'game_date: ' + $("input[name=game-date]").val() + '\n' +
             '\n';
 
-        data += 'files:\n';
-        for(i in videofiles) {
-            data += '  - name: "' + videofiles[i].filename + '"\n';
-            data += '    goals:\n';
-            for(j in videofiles[i].goals) {
-                var goal = videofiles[i].goals[j];
-                data += '    - { team: "' + goal.team + '", time: "' + formatTime(goal.time) + '" }\n';
-            }
-            data += '    timer_events:\n';
-            for(j in videofiles[i].timer_events) {
-                var event = videofiles[i].timer_events[j];
-                data += '    - { timer: ' + event.timer + ', event: ' + event.event + ', time: "' + formatTime(event.time) + '" }\n';
-            }
-
-            data += '\n';
+        data += 'goals:\n';
+        for(i in goals) {
+            var goal = goals[i];
+            data += '  - { team: "' + goal.team + '", time: "' + formatTime(goal.time) + '" }\n';
         }
+        data += '\n';
+
+        data += 'timer_events:\n';
+        for(i in timerEvents) {
+            var event = timerEvents[i];
+            data += '    - { timer: ' + event.timer + ', event: ' + event.event + ', time: "' + formatTime(event.time) + '" }\n';
+        }
+        data += '\n';
 
         var blob = new Blob([data], { type: "text/x-yaml" });
         $(".game-link").attr("href", window.URL.createObjectURL(blob));
@@ -217,31 +220,67 @@ jQuery.Color.fn.contrastColor = function() {
             data += 'flip: true\n';
         }
 
-        data += "files:\n";
-        for(i in videofiles) {
-            data += '  - name: "' + videofiles[i].filename + '"\n';
-            data += '    clips:\n';
-            for(j in videofiles[i].clips) {
-                var clip = videofiles[i].clips[j];
-                data += '    - { start: "' + formatTime(clip.start) + '", end: "' + formatTime(clip.end) + '"';
-                if(clip.zoom) {
-                    data += ', pre_effects: [["crop", ' + clip.zoom.x1 + ', ' + clip.zoom.y1 + ', ' + clip.zoom.x2 + ', ' + clip.zoom.y2
-                        + '], ["resize", {"width": ' + player.videoWidth() + ', "height": ' + player.videoHeight() + '}]]';
+        data += "cameras:\n";
+        $(".files-loaded").each(function(i) {
+            data += '  - name: ' + (i+1) + '\n';
+            data += '    files:\n';
+            $(this).find(".selectable").each(function() {
+                data += '      - "' + $(this).text() + '"\n';
+            });
+
+            data += '\n';
+        });
+
+        data += "clips:\n";
+        for(i in clips) {
+            clip = clips[i];
+            data += '  - { start: "' + formatTime(clip.start) + '", end: "' + formatTime(clip.end) + '", camera: ';
+            if(clip.cameraswaps.length > 0) {
+                data += '[ { time: "' + formatTime(clip.start) + '", camera: "' + clip.camera + '" }, ';
+
+                swaptimes = [];
+                currentCamera = clip.camera;
+                for(j in clip.cameraswaps) {
+                    currentCamera = (currentCamera % $(".files-loaded").length) + 1;
+                    swaptext = '{ time: "' + formatTime(clip.cameraswaps[j]) + '", camera: ' + currentCamera + ' }';
                 }
 
-                data += ' }\n';
+                data += swaptimes.join(", ");
+                data += ']';
+            } else {
+                data += clip.camera;
             }
-            data += '\n';
+
+            data += ' }\n';
         }
 
         var blob = new Blob([data], { type: "text/x-yaml" });
         $(".clips-link").attr("href", window.URL.createObjectURL(blob));
     }
 
+    function getLocalStorageKey() {
+        var filenames = [];
+        for(i in videofiles) {
+            filenames.push(videofiles[i].filename);
+        }
+        filenames.sort()
+
+        return filenames.join(",");
+    }
+
     function updateLocalStorage() {
-        $.each(videofiles, function(i, videofile) {
-            storage.setItem(videofile.filename, JSON.stringify(videofile));
-        });
+        storageData = {
+            "timerEvents": timerEvents,
+            "goals": goals,
+            "clips": clips,
+            "homeTeam": $("input[name=home-team]").val(),
+            "homeTeamColor": $("input[name=home-team-color]").val(),
+            "awayTeam": $("input[name=away-team]").val(),
+            "awayTeamColor": $("input[name=away-team-color]").val(),
+            "gameDate": $("input[name=game-date]").val()
+        };
+
+        storage.setItem(getLocalStorageKey(), JSON.stringify(storageData));
     }
 
     function updateData() {
@@ -269,7 +308,8 @@ jQuery.Color.fn.contrastColor = function() {
             currentvideo.duration = player.duration();
         }
 
-        $("#clip-file").val(currentclip.file);
+        $("#clip-camera").val(currentclip.camera);
+        $("#clip-camera-swaps").val(currentclip.cameraswaps.join(", "));
 
         if(currentclip.start) {
             $("#clip-start").val(formatTime(currentclip.start));
@@ -350,16 +390,12 @@ jQuery.Color.fn.contrastColor = function() {
     }
 
     function updateClipList() {
-        var clips = [];
         var container = $(".video-clips .inputs").not(".editbox .inputs");
-
-        $.each(currentvideo.clips, function(i, clip) {
-            var indexedClip = {"idx": i, "start": clip.start, "end": clip.end};
-            clips.push(indexedClip);
-        });
 
         clips.sort(function(a, b) { return a.start - b.start; });
         $.each(clips, function(i, clip) {
+            clip.idx = i;
+
             var row = container.find(".row[idx=" + clip.idx + "]");
             if(row.length == 0) {
                 row = $("<div/>").addClass("row selectable").attr("idx", clip.idx).appendTo(container);
@@ -434,7 +470,11 @@ jQuery.Color.fn.contrastColor = function() {
     function selectVideoFile() {
         var $this = $(this);
 
-        $("video").attr("src", $this.attr("videourl"));
+        var idx = $this.closest(".files-loaded .inputs").find(".selectable").index($this);
+        for(i in allPlayers) {
+            var url = $($($(".files-loaded .inputs").get(i)).find(".selectable").get(idx)).attr("videourl");
+            $("video").get(i).src = url;
+        }
 
         $(".files-loaded .inputs").find(".selectable").removeClass("selected");
         $this.addClass("selected");
@@ -493,7 +533,7 @@ jQuery.Color.fn.contrastColor = function() {
 
         e.stopPropagation();
 
-        currentvideo.clips.splice(row.attr("idx"), 1);
+        clips.splice(row.attr("idx"), 1);
         forceUpdateClipList();
         updateData();
     }
@@ -563,7 +603,7 @@ jQuery.Color.fn.contrastColor = function() {
 
         var isSelected = $this.hasClass("selected");
         var editbox = $(".editbox.clip");
-        var clip = currentvideo.clips[$this.attr("idx")];
+        var clip = clips[$this.attr("idx")];
 
         editbox.hide();
         $this.closest(".inputs").find(".selectable").removeClass("selected");
@@ -580,7 +620,7 @@ jQuery.Color.fn.contrastColor = function() {
 
     function editClip() {
         var selected = $(".video-clips .row.selected");
-        var clip = currentvideo.clips[selected.attr("idx")];
+        var clip = clips[selected.attr("idx")];
 
         $(".editbox.clip").find(".error").removeClass("error");
 
@@ -615,8 +655,8 @@ jQuery.Color.fn.contrastColor = function() {
                 currentclip.end += clipvideo.duration;
             }
 
-            clipvideo.clips.push(currentclip);
-            currentclip = {};
+            clips.push(currentclip);
+            currentclip = {"cameraswaps": []};
             updateClipList();
             updateCurrentClip();
             updateData();
@@ -661,9 +701,7 @@ jQuery.Color.fn.contrastColor = function() {
         var reader = new FileReader();
         $.each(e.originalEvent.dataTransfer.files, function(i, file) {
             var videourl = window.URL.createObjectURL(file);
-            var videofile = file.name in storage ? JSON.parse(storage.getItem(file.name)) : {"filename": file.name, "clips": [], "goals": [], "timer_events": []};
-            videofile.url = videourl;
-
+            var videofile = {"filename": file.name, "url": videourl};
             videofiles[videourl] = videofile;
         });
 
@@ -672,6 +710,19 @@ jQuery.Color.fn.contrastColor = function() {
 
         if(!currentvideo) {
             $(".files-loaded .inputs .row").first().click();
+        }
+
+        if(getLocalStorageKey() in storage) {
+            storageData = JSON.parse(storage.getItem(getLocalStorageKey()));
+
+            timerEvents = storageData.timerEvents;
+            goals = storageData.goals;
+            clips = storageData.clips;
+            $("input[name=home-team]").val(storageData.homeTeam);
+            $("input[name=home-team-color]").val(storageData.homeTeamColor);
+            $("input[name=away-team]").val(storageData.awayTeam);
+            $("input[name=away-team-color]").val(storageData.awayTeamColor);
+            $("input[name=game-date]").val(storageData.gameDate);
         }
     }
 
@@ -683,7 +734,7 @@ jQuery.Color.fn.contrastColor = function() {
         e.preventDefault();
 
         if($("#zoom-box").hasClass("active")) {
-            var $videoObj = $(".video-object"), $zoomBox = $("#zoom-box");
+            var $videoObj = $(".video-object-active"), $zoomBox = $("#zoom-box");
             var x1 = $zoomBox.offset().left - $videoObj.offset().left, y1 = $zoomBox.offset().top - $videoObj.offset().top;
             var x2 = x1 + $zoomBox.width(), y2 = y1 + $zoomBox.height();
 
@@ -713,7 +764,7 @@ jQuery.Color.fn.contrastColor = function() {
 
     function zoomMove(e) {
         if($("#zoom-box").hasClass("active")) {
-            var $videoObj = $(".video-object");
+            var $videoObj = $(".video-object-active");
             var vminX = $videoObj.offset().left, vminY = $videoObj.offset().top;
             var vmaxX = vminX + $videoObj.width(), vmaxY = vminY + $videoObj.height();
             var evtX = Math.min(vmaxX, Math.max(vminX, e.pageX));
@@ -747,36 +798,61 @@ jQuery.Color.fn.contrastColor = function() {
         $(".video-object").toggleClass("zooming");
     }
 
-    function changeCamera() {
-        var current = $(".files-loaded").find(".selected").first();
-        var activeContainer = current.closest(".files-loaded");
-        var inactiveContainer = $(".files-loaded").not(activeContainer);
-        var idx = activeContainer.find(".selectable").index(current);
-
-        current.removeClass("selected");
-        $(inactiveContainer.find(".selectable").get(idx)).addClass("selected");
-
-        var time = player.currentTime();
-        var paused = player.paused();
-        var selected = $(".files-loaded").find(".selected").first();
-        $("video").attr("src", selected.attr("videourl"));
-        player.currentTime(time);
-
-        if(!paused) {
-            player.play();
+    function activePlayerIdx() {
+        for(i in allPlayers) {
+            if(allPlayers[i] == player) {
+                return parseInt(i);
+            }
         }
+    }
+
+    function changeCamera() {
+        newIdx = (activePlayerIdx() + 1) % allPlayers.length;
+        $(".video-object").removeClass("video-object-active");
+        $("#" + allPlayers[newIdx].id_).addClass("video-object-active");
+
+        player = allPlayers[newIdx];
+
+        for(i in allPlayers) {
+            allPlayers[i].muted(true);
+        }
+
+        if(currentclip.start) {
+            currentclip.cameraswaps.push(getAbsoluteTime());
+        }
+
+        player.muted(false);
+    }
+
+    function setTime(time) {
+        for(i in allPlayers) {
+            allPlayers[i].currentTime(time);
+        }
+    }
+
+    function timeToMove(e) {
+        if(e.ctrlKey) {
+            return 30;
+        }
+
+        if(e.shiftKey) {
+            return 1;
+        }
+
+        return 5;
     }
 
     function readKey(e) {
         switch(e.which) {
         case 73:  // I
-            currentclip.start = player.currentTime();
-            currentclip.file = currentvideo.filename;
+            currentclip.start = getAbsoluteTime();
+            currentclip.camera = activePlayerIdx() + 1;
+            currentclip.cameraswaps = [];
             updateCurrentClip();
             break;
 
         case 79:  // O
-            currentclip.end = player.currentTime();
+            currentclip.end = getAbsoluteTime();
             updateCurrentClip();
             break;
 
@@ -802,8 +878,12 @@ jQuery.Color.fn.contrastColor = function() {
             break;
 
         case 82:  // R
-            player.zoomrotate({"rotate": 180});
+            for(i in allPlayers) {
+                allPlayers[i].zoomrotate({"rotate": 180});
+            }
+
             flipped = !flipped;
+            break;
 
         case 84:  // T
             addTimerEvent(getAbsoluteTime());
@@ -814,11 +894,17 @@ jQuery.Color.fn.contrastColor = function() {
             break;
 
         case 190: // >
-            player.playbackRate(player.playbackRate() * 1.5);
+            for(i in allPlayers) {
+                allPlayers[i].playbackRate(allPlayers[i].playbackRate() * 1.5);
+            }
+
             break;
 
         case 188: // <
-            player.playbackRate(player.playbackRate() / 1.5);
+            for(i in allPlayers) {
+                allPlayers[i].playbackRate(allPlayers[i].playbackRate() / 1.5);
+            }
+
             break;
 
         case 219: // [
@@ -838,19 +924,26 @@ jQuery.Color.fn.contrastColor = function() {
             break;
 
         case 191:  // /
-            player.playbackRate(1.0);
+            for(i in allPlayers) {
+                allPlayers[i].playbackRate(1.0);
+            }
+
             break;
 
         case 32:  // space
-            player.paused() ? player.play() : player.pause();
+            var paused = player.paused();
+            for(i in allPlayers) {
+                paused ? allPlayers[i].play() : allPlayers[i].pause();
+            }
+
             break;
 
         case 39:  // right
-            player.currentTime(player.currentTime() + 5);
+            setTime(player.currentTime() + timeToMove(e));
             break;
 
         case 37:  // left
-            player.currentTime(player.currentTime() - 5);
+            setTime(player.currentTime() - timeToMove(e));
             break;
         }
     }
@@ -864,4 +957,4 @@ jQuery.Color.fn.contrastColor = function() {
         $("input").keydown(function(e) { e.stopPropagation(); });
         $("html").keydown(readKey);
     }
-//}();
+}();

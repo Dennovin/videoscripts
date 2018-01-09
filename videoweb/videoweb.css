@@ -162,6 +162,14 @@ div.links a:hover {
     color: #001f3f;
 }
 
+.video-object {
+    display: none;
+}
+
+.video-object.video-object-active {
+    display: block;
+}
+
 .video-object.zooming {
     cursor: crosshair;
 }
