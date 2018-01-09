@@ -53,7 +53,6 @@ var videoweb = function() {
 
         // Set up color boxes
         $("input.color").change(function(e) {
-            $(this).css("background-color", $(this).val());
             setTextColor($(this));
         });
 
@@ -90,12 +89,15 @@ var videoweb = function() {
     function getAbsoluteTime(time, videoIdx) {
         time = time || player.currentTime();
 
-        $.each($(".files-loaded").find(".selectable"), function(i, row) {
-            if(videoIdx == i || (videoIdx === undefined && $(row).hasClass("selected"))) {
+        var activeSection = $(".files-loaded .selected").closest(".files-loaded");
+        activeSection.find(".selectable").each(function(i) {
+            if(videoIdx == i || (videoIdx === undefined && $(this).hasClass("selected"))) {
                 return false;
             }
 
-            time += videofiles[$(row).attr("videourl")].duration;
+            if(videofiles[$(this).attr("videourl")].duration !== undefined) {
+                time += videofiles[$(this).attr("videourl")].duration;
+            }
         });
 
         return time;
@@ -201,7 +203,7 @@ var videoweb = function() {
         data += 'timer_events:\n';
         for(i in timerEvents) {
             var event = timerEvents[i];
-            data += '    - { timer: ' + event.timer + ', event: ' + event.event + ', time: "' + formatTime(event.time) + '" }\n';
+            data += '  - { timer: ' + event.timer + ', event: ' + event.event + ', time: "' + formatTime(event.time) + '" }\n';
         }
         data += '\n';
 
@@ -236,7 +238,7 @@ var videoweb = function() {
             clip = clips[i];
             data += '  - { start: "' + formatTime(clip.start) + '", end: "' + formatTime(clip.end) + '", camera: ';
             if(clip.cameraswaps.length > 0) {
-                data += '[ { time: "' + formatTime(clip.start) + '", camera: "' + clip.camera + '" }, ';
+                data += '[ { time: "' + formatTime(clip.start) + '", camera: ' + clip.camera + ' }, ';
 
                 swaptimes = [];
                 currentCamera = clip.camera;
@@ -309,7 +311,7 @@ var videoweb = function() {
         }
 
         $("#clip-camera").val(currentclip.camera);
-        $("#clip-camera-swaps").val(currentclip.cameraswaps.join(", "));
+        $("#clip-camera-swaps").val(currentclip.cameraswaps.map(x => formatTime(x)).join(", "));
 
         if(currentclip.start) {
             $("#clip-start").val(formatTime(currentclip.start));
@@ -355,11 +357,13 @@ var videoweb = function() {
         var events = [];
         var container = $(".timer-events .inputs").not(".editbox .inputs");
 
+        timerEvents.sort(function(a, b) { return a.time - b.time; });
         $.each(timerEvents, function(i, event) {
             var event = {"idx": i, "time": event.time, "type": "timer", "title": (event.event.substring(0, 1).toUpperCase() + event.event.slice(1)) + " " + event.timer};
             events.push(event);
         });
 
+        goals.sort(function(a, b) { return a.time - b.time; });
         $.each(goals, function(i, goal) {
             var event = {"idx": i, "time": goal.time, "type": "goal", "title": "Goal (" + (goal.team.substring(0, 1).toUpperCase() + goal.team.slice(1)) + ")"};
             events.push(event);
@@ -463,6 +467,7 @@ var videoweb = function() {
     }
 
     function setTextColor(input) {
+        input.css("background-color", input.val());
         var textColor = $.Color(input.css("background-color")).contrastColor();
         input.css("color", textColor);
     }
@@ -490,7 +495,7 @@ var videoweb = function() {
 
         var isSelected = $this.hasClass("selected");
         var editbox = $(".editbox.goal");
-        var goal = currentvideo.goals[$this.attr("idx")];
+        var goal = goals[$this.attr("idx")];
 
         editbox.hide();
         $this.closest(".inputs").find(".selectable").removeClass("selected");
@@ -511,7 +516,7 @@ var videoweb = function() {
 
         e.stopPropagation();
 
-        currentvideo.goals.splice(row.attr("idx"), 1);
+        goals.splice(row.attr("idx"), 1);
         forceUpdateGameEvents();
         updateData();
     }
@@ -522,7 +527,7 @@ var videoweb = function() {
 
         e.stopPropagation();
 
-        currentvideo.timer_events.splice(row.attr("idx"), 1);
+        timerEvents.splice(row.attr("idx"), 1);
         forceUpdateGameEvents();
         updateData();
     }
@@ -562,7 +567,7 @@ var videoweb = function() {
 
         var isSelected = $this.hasClass("selected");
         var editbox = $(".editbox.timer");
-        var event = currentvideo.timer_events[$this.attr("idx")];
+        var event = timerEvents[$this.attr("idx")];
 
         editbox.hide();
         $this.closest(".inputs").find(".selectable").removeClass("selected");
@@ -580,7 +585,7 @@ var videoweb = function() {
 
     function editTimer() {
         var selected = $(".timer-events .row.timer.selected");
-        var event = currentvideo.timer_events[selected.attr("idx")];
+        var event = timerEvents[selected.attr("idx")];
 
         $(".editbox.timer").find(".error").removeClass("error");
 
@@ -644,17 +649,6 @@ var videoweb = function() {
 
     function saveCurrentClip() {
         if(currentclip.start && currentclip.end) {
-            var clipvideo = currentvideo;
-            $.each(videofiles, function(i, videofile) {
-                if(videofile.filename == currentclip.file) {
-                    clipvideo = videofile;
-                }
-            });
-
-            if(clipvideo.filename != currentvideo.filename) {
-                currentclip.end += clipvideo.duration;
-            }
-
             clips.push(currentclip);
             currentclip = {"cameraswaps": []};
             updateClipList();
@@ -706,7 +700,6 @@ var videoweb = function() {
         });
 
         updateVideoFiles();
-        updateLocalStorage();
 
         if(!currentvideo) {
             $(".files-loaded .inputs .row").first().click();
@@ -723,6 +716,12 @@ var videoweb = function() {
             $("input[name=away-team]").val(storageData.awayTeam);
             $("input[name=away-team-color]").val(storageData.awayTeamColor);
             $("input[name=game-date]").val(storageData.gameDate);
+
+            setTextColor($("input[name=home-team-color]"));
+            setTextColor($("input[name=away-team-color]"));
+
+            forceUpdateGameEvents();
+            forceUpdateClipList();
         }
     }
 
@@ -819,6 +818,7 @@ var videoweb = function() {
 
         if(currentclip.start) {
             currentclip.cameraswaps.push(getAbsoluteTime());
+            updateCurrentClip();
         }
 
         player.muted(false);
