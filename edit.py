@@ -468,6 +468,7 @@ for clip in config.get("clips", []):
         "camera": clip.get("camera", config["cameras"][0]["name"]),
         "pre_effects": clip.get("pre_effects", []) + config.get("clip_pre_effects", []),
         "effects": clip.get("effects", []) + config.get("clip_effects", []),
+        "scoreboard": clip.get("scoreboard", True),
     })
 
 if config.get("clip_events", False):
@@ -502,7 +503,7 @@ for clip_time in clip_times:
         for effect in clip_time["pre_effects"]:
             subclip_part = apply_effect(subclip_part, effect)
 
-        if text_clips:
+        if text_clips and clip_time.get("scoreboard", True):
             subclip_part = CompositeVideoClip([subclip_part] + text_clips)
 
         subclip_parts.append(subclip_part.subclip(t_start=parse_time(camera_selection["time"]), t_end=end_time))
