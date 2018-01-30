@@ -3,7 +3,7 @@ jQuery.Color.fn.contrastColor = function() {
     return (((r*299)+(g*587)+(b*144))/1000) >= 131.5 ? "black" : "white";
 };
 
-var videoweb = function() {
+//var videoweb = function() {
     var player, allPlayers;
     var currentvideo = null, currentclip = {"cameraswaps": []};
     var storage = window.localStorage;
@@ -240,14 +240,14 @@ var videoweb = function() {
             if(clip.cameraswaps.length > 0) {
                 data += '[ { time: "' + formatTime(clip.start) + '", camera: ' + clip.camera + ' }, ';
 
-                swaptimes = [];
+                swaptext = [];
                 currentCamera = clip.camera;
                 for(j in clip.cameraswaps) {
                     currentCamera = (currentCamera % $(".files-loaded").length) + 1;
-                    swaptext = '{ time: "' + formatTime(clip.cameraswaps[j]) + '", camera: ' + currentCamera + ' }';
+                    swaptext.push('{ time: "' + formatTime(clip.cameraswaps[j]) + '", camera: ' + currentCamera + ' }');
                 }
 
-                data += swaptimes.join(", ");
+                data += swaptext.join(", ");
                 data += ']';
             } else {
                 data += clip.camera;
@@ -545,7 +545,7 @@ var videoweb = function() {
 
     function editGoal() {
         var selected = $(".timer-events .row.goal.selected");
-        var goal = currentvideo.goals[selected.attr("idx")];
+        var goal = goals[selected.attr("idx")];
 
         $(".editbox.goal").find(".error").removeClass("error");
 
@@ -816,11 +816,6 @@ var videoweb = function() {
             allPlayers[i].muted(true);
         }
 
-        if(currentclip.start) {
-            currentclip.cameraswaps.push(getAbsoluteTime());
-            updateCurrentClip();
-        }
-
         player.muted(false);
     }
 
@@ -893,6 +888,14 @@ var videoweb = function() {
             toggleZoom(e);
             break;
 
+        case 83:  // S
+            if(currentclip.start) {
+                currentclip.cameraswaps.push(getAbsoluteTime());
+                updateCurrentClip();
+            }
+
+            break;
+
         case 190: // >
             for(i in allPlayers) {
                 allPlayers[i].playbackRate(allPlayers[i].playbackRate() * 1.5);
@@ -957,4 +960,4 @@ var videoweb = function() {
         $("input").keydown(function(e) { e.stopPropagation(); });
         $("html").keydown(readKey);
     }
-}();
+//}();
