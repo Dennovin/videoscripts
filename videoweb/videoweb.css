@@ -8,9 +8,12 @@ body {
 div.boxes {
     position: absolute;
     left: 1300px;
-    right: 10px;
-    top: 10px;
+    right: 0;
+    top: 0;
     height: 100%;
+    overflow-y: scroll;
+    padding-right: 10px;
+    padding-top: 10px;
 }
 
 div.box {
