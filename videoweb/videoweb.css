@@ -162,6 +162,25 @@ div.links a:hover {
     color: #001f3f;
 }
 
+div.box-container {
+    display: flex;
+    flex-direction: row;
+}
+
+div.box-container div.box {
+    flex-grow: 1;
+    margin-left: 3px;
+    margin-right: 3px;
+}
+
+div.box-container div.box:first-child {
+    margin-left: 0;
+}
+
+div.box-container div.box:last-child {
+    margin-right: 0;
+}
+
 .video-object {
     display: none;
 }
@@ -202,8 +221,8 @@ div#scoreboard-container div {
     margin: 0 3px;
 }
 
-div#timer-box {
-    width: 4em;
+div#abs-timer-box, div#timer-box {
+    width: 6em;
     text-align: center;
     background-color: rgba(0, 0, 0, 0.5);
 }

@@ -3,7 +3,7 @@ jQuery.Color.fn.contrastColor = function() {
     return (((r*299)+(g*587)+(b*144))/1000) >= 131.5 ? "black" : "white";
 };
 
-//var videoweb = function() {
+var videoweb = function() {
     var player, allPlayers;
     var currentvideo = null, currentclip = {"cameraswaps": []};
     var storage = window.localStorage;
@@ -36,7 +36,7 @@ jQuery.Color.fn.contrastColor = function() {
         $("body").click(removePopups);
         $("body").on("click", ".video-object.zooming video, #zoom-box", zoomClick);
         $("body").on("mousemove", ".video-object.zooming, #zoom-box", zoomMove);
-        window.setInterval(setTimer, 500);
+        window.setInterval(setTimer, 10);
 
         // Set up and resize player
         allPlayers = [
@@ -144,6 +144,28 @@ jQuery.Color.fn.contrastColor = function() {
         return Math.max(timeLeft, 0);
     }
 
+    function currentPeriod() {
+        var now = getAbsoluteTime();
+        var lastTimerStart = 0;
+        var currentPd = "";
+
+        timerEvents.sort(function(a, b) { return a.time - b.time; });
+
+        for(i in timerEvents) {
+            var evt = timerEvents[i];
+            if(evt.time > now) {
+                break;
+            }
+
+            if(evt.event == "start" && evt.time > lastTimerStart) {
+                lastTimerStart = evt.time;
+                currentPd = evt.timer;
+            }
+        }
+
+        return currentPd;
+    }
+
     function currentScore() {
         var scores = {};
         var now = getAbsoluteTime();
@@ -165,7 +187,8 @@ jQuery.Color.fn.contrastColor = function() {
     function setTimer() {
         var timeLeft = currentGameTime();
         var score = currentScore();
-        $("#timer-box").html(formatTime(timeLeft).substr(0, 5));
+        $("#abs-timer-box").html(formatTime(getAbsoluteTime()).substr(0, 8));
+        $("#timer-box").html(currentPeriod() + " " + formatTime(timeLeft).substr(0, 5));
         $("#away-score-box").html(score["away"] || 0);
         $("#home-score-box").html(score["home"] || 0);
         $("#scoreboard-container").css({"left": $(".video-object-active").width() - $("#scoreboard-container").width()});
@@ -806,11 +829,20 @@ jQuery.Color.fn.contrastColor = function() {
     }
 
     function changeCamera() {
+        wasFullscreen = player.isFullscreen();
         newIdx = (activePlayerIdx() + 1) % allPlayers.length;
         $(".video-object").removeClass("video-object-active");
         $("#" + allPlayers[newIdx].id_).addClass("video-object-active");
 
+        if(wasFullscreen) {
+            player.exitFullscreen();
+        }
+
         player = allPlayers[newIdx];
+
+        if(wasFullscreen) {
+            player.requestFullscreen();
+        }
 
         for(i in allPlayers) {
             allPlayers[i].muted(true);
@@ -960,4 +992,4 @@ jQuery.Color.fn.contrastColor = function() {
         $("input").keydown(function(e) { e.stopPropagation(); });
         $("html").keydown(readKey);
     }
-//}();
+}();
