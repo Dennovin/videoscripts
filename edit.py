@@ -322,7 +322,14 @@ if "home_team" in config and "away_team" in config:
 
     for timer in timers:
         if not "length" in timer:
-            # Just a label, no associated events
+            # Just a label, give it start/end times if they're listed
+            for timer_event in config.get("timer_events", []):
+                if timer_event.get("timer", None) == timer["name"]:
+                    if timer_event["event"] == "start":
+                        timer["start"] = parse_time(timer_event["time"])
+                    elif timer_event["event"] == "end":
+                        timer["end"] = parse_time(timer_event["time"])
+
             continue
 
         timer["pauses"] = []
@@ -388,15 +395,28 @@ if "home_team" in config and "away_team" in config:
 
         logging.info("Generating label: {}".format(timer["name"]))
 
-        if i == 0:
-            timer["start"] = 0
-        else:
-            timer["start"] = timers[i-1].start + timers[i-1].total_length()
+        if not "start" in timer:
+            if i == 0:
+                timer["start"] = 0
+            elif hasattr(timers[i-1], "start"):
+                timer["start"] = timers[i-1].start + timers[i-1].total_length()
+            else:
+                timer["start"] = timers[i-1]["end"]
 
-        try:
-            timer["end"] = timers[i+1].start
-        except IndexError:
-            timer["end"] = video_duration
+        if not "end" in timer:
+            try:
+                timer["end"] = timers[i+1].start
+            except IndexError:
+                timer["end"] = video_duration
+            except AttributeError:
+                pass
+
+        if i > 0 and not hasattr(timers[i-1], "total_length") and not "end" in timers[i-1]:
+            timers[i-1]["end"] = timer["start"]
+
+    for i, timer in enumerate(timers):
+        if hasattr(timer, "total_length"):
+            continue
 
         logging.info("  Label {} starts at {} and ends at {}".format(timer["name"], format_time(timer["start"]), format_time(timer["end"])))
 
