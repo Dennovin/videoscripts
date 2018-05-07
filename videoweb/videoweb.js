@@ -276,10 +276,17 @@ var videoweb = function() {
                 data += clip.camera;
             }
 
+            if(clip.tags) {
+                data += ', tags: [' + clip.tags.map(x => '"' + x + '"').join(", ") + ']';
+            }
+
             if(clip.zoom) {
                 data += ', pre_effects: [["crop", ' + clip.zoom.x1 + ', ' + clip.zoom.y1 + ', ' + clip.zoom.x2 + ', ' + clip.zoom.y2
                         + '], ["resize", {"width": ' + player.videoWidth() + ', "height": ' + player.videoHeight() + '}]]';
-                }
+            }
+
+            if(clip.speed) {
+                data += ', effects: [["speedx", ' + clip.speed + ']]';
             }
 
             data += ' }\n';
@@ -678,8 +685,17 @@ var videoweb = function() {
 
     function saveCurrentClip() {
         if(currentclip.start && currentclip.end) {
+            currentclip.speed = $("#clip-speed").val()
+            if($("#clip-tags").val()) {
+                currentclip.tags = $("#clip-tags").val().split(/\s*\,\s*/);
+            }
+
             clips.push(currentclip);
+
             currentclip = {"cameraswaps": []};
+            $("#clip-tags").val("");
+            $("#clip-speed").val("");
+
             updateClipList();
             updateCurrentClip();
             updateData();

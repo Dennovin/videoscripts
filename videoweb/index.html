@@ -42,7 +42,9 @@
             <label for="clip-camera-swaps">Camera Swaps:</label>
             <label for="clip-start">Start Time:</label>
             <label for="clip-end">End Time:</label>
+            <label for="clip-tags">Tags:</label>
             <label for="clip-zoom">Zoom:</label>
+            <label for="clip-speed">Speed:</label>
           </div>
 
           <div class="inputs">
@@ -63,7 +65,22 @@
             </div>
 
             <div class="row">
+              <input type="text" name="clip-tags" id="clip-tags" />
+            </div>
+
+            <div class="row">
               <input type="text" name="clip-zoom" id="clip-zoom" />
+            </div>
+
+            <div class="row">
+              <select name="clip-speed" id="clip-speed">
+                <option value="3.0">x 3</option>
+                <option value="2.0">x 2</option>
+                <option value="" selected>x 1</option>
+                <option value="0.5">x 1/2</option>
+                <option value="0.33">x 1/3</option>
+                <option value="0.25">x 1/4</option>
+              </select>
             </div>
           </div>
         </div>
