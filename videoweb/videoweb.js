@@ -276,6 +276,12 @@ var videoweb = function() {
                 data += clip.camera;
             }
 
+            if(clip.zoom) {
+                data += ', pre_effects: [["crop", ' + clip.zoom.x1 + ', ' + clip.zoom.y1 + ', ' + clip.zoom.x2 + ', ' + clip.zoom.y2
+                        + '], ["resize", {"width": ' + player.videoWidth() + ', "height": ' + player.videoHeight() + '}]]';
+                }
+            }
+
             data += ' }\n';
         }
 
