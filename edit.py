@@ -478,6 +478,7 @@ logging.info("Generating video clips.")
 
 clip_times = []
 all_clips = []
+tagged_clips = {}
 
 for clip in config.get("clips", []):
     start_time = parse_time(clip["start"])
@@ -489,6 +490,7 @@ for clip in config.get("clips", []):
         "pre_effects": clip.get("pre_effects", []) + config.get("clip_pre_effects", []),
         "effects": clip.get("effects", []) + config.get("clip_effects", []),
         "scoreboard": clip.get("scoreboard", True),
+        "tags": clip.get("tags", []),
     })
 
 if config.get("clip_events", False):
@@ -539,6 +541,21 @@ for clip_time in clip_times:
         subclip.write_videofile(filename, fps=30, **write_videofile_opts)
 
     all_clips.append(VideoFileClip(filename))
+
+    for tag in clip_time.get("tags", []):
+        tag_name = tag.lower().strip()
+        tagged_clips[tag_name] = tagged_clips.get(tag_name, [])
+        tagged_clips[tag_name].append(VideoFileClip(filename))
+
+for tag_name, tag_clips in tagged_clips.items():
+    logging.info("Compiling {} clips with tag '{}'".format(len(tag_clips), tag_name))
+
+    tagged_video_filename = os.path.join(output_dir, "{}.mp4".format(tag_name))
+    tagged_video = concatenate_videoclips(tag_clips)
+    if os.path.isfile(tagged_video_filename):
+        logging.info("{} already exists, skipping".format(tagged_video_filename))
+    else:
+        tagged_video.write_videofile(tagged_video_filename, fps=30, **write_videofile_opts)
 
 if "write_full" in config:
     video_clip.write_videofile(output_filename, fps=30, **write_videofile_opts)
