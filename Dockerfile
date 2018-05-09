@@ -1,7 +1,7 @@
-FROM ubuntu:16.04
-RUN apt-get -y update
-RUN apt-get -y install nfs-common tmux git build-essential nginx python python-pip python-dev imagemagick \
-    libmagickwand-dev zlib1g-dev libpng12-dev libfreeimage-dev
+FROM ubuntu:17.10
+RUN apt -y update
+RUN apt -y install nfs-common tmux git build-essential nginx python python-pip python-dev imagemagick \
+    libmagickwand-dev zlib1g-dev libpng-dev libfreeimage-dev
 
 ADD . /editor
 ADD ./videoweb /wwwroot
@@ -19,4 +19,3 @@ RUN python -c 'import imageio; imageio.plugins.ffmpeg.download()'
 EXPOSE 80
 
 CMD /usr/sbin/nginx -g "daemon off;"
-
