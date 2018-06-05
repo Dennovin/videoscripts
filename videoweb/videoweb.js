@@ -120,7 +120,7 @@ var videoweb = function() {
             }
 
             if(evt.event == "start" && evt.time > lastTimerStart) {
-                lastTimerStart = evt.time - 1;
+                lastTimerStart = evt.time + 1;
                 timerPausedFor = 0;
             }
             if(evt.event == "pause") {
