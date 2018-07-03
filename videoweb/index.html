@@ -94,6 +94,7 @@
             <label for="away-team">Away Team:</label>
             <label for="home-team">Home Team:</label>
             <label for="game-date">Game Date:</label>
+            <label for="game-type">Game Type:</label>
           </div>
 
           <div class="inputs">
@@ -109,6 +110,14 @@
 
             <div class="row">
               <input type="text" class="datepicker" name="game-date" />
+            </div>
+
+            <div class="row">
+              <select name="game-type" id="game-type">
+                <option value="">Regular</option>
+                <option value="semifinal">Semifinal</option>
+                <option value="final">Final</option>
+              </select>
             </div>
           </div>
         </div>

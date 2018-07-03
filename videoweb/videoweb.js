@@ -245,6 +245,21 @@ var videoweb = function() {
             data += 'flip: true\n';
         }
 
+        if($("#game-type").val()) {
+            data += 'youtube:\n';
+
+            switch($("#game-type").val()) {
+            case "semifinal":
+                data += '  title: "Semifinal';
+                break;
+            case "final":
+                data += '  title: "Final';
+                break;
+            }
+
+            data += ': {away_team} vs. {home_team}, {game_date.day} {game_date:%b %Y}"\n\n';
+        }
+
         data += "cameras:\n";
         $(".files-loaded").each(function(i) {
             data += '  - name: ' + (i+1) + '\n';
